@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 type Lead = {
   id: number;
@@ -22,9 +23,22 @@ export default function AdminPage() {
   const [duplicateFilter, setDuplicateFilter] = useState("Tutti");
 
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("leads") || "[]");
-    setLeads(saved);
-  }, []);
+  async function loadLeads() {
+    const { data, error } = await supabase
+      .from("leads")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setLeads(data || []);
+  }
+
+  loadLeads();
+}, []);
 
   function login() {
     if (password === ADMIN_PASSWORD) {
@@ -34,13 +48,22 @@ export default function AdminPage() {
     }
   }
 
-  function updateStatus(id: number, status: string) {
-    const updated = leads.map((lead) =>
-      lead.id === id ? { ...lead, status } : lead
-    );
-    setLeads(updated);
-    localStorage.setItem("leads", JSON.stringify(updated));
+  async function updateStatus(id: number, status: string) {
+  const { error } = await supabase
+    .from("leads")
+    .update({ status })
+    .eq("id", id);
+
+  if (error) {
+    alert("Errore aggiornando lo stato.");
+    console.error(error);
+    return;
   }
+
+  setLeads((prev) =>
+    prev.map((lead) => (lead.id === id ? { ...lead, status } : lead))
+  );
+}
 
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {

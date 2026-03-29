@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function Home() {
   const [form, setForm] = useState({
@@ -22,46 +23,59 @@ export default function Home() {
     reader.readAsDataURL(file);
   }
 
-  function saveLead() {
-    if (!form.owner || !form.phone || !form.city) {
-      alert("Compila nome, telefono e città.");
-      return;
-    }
+async function saveLead() {
+  if (!form.owner || !form.phone || !form.city) {
+    alert("Compila nome, telefono e città.");
+    return;
+  }
 
-    const existing = JSON.parse(localStorage.getItem("leads") || "[]");
+  const { data: existingLeads, error: fetchError } = await supabase
+    .from("leads")
+    .select("owner, phone, city");
 
-    const duplicate = existing.some(
-      (l: any) =>
-        l.phone === form.phone ||
-        (
-          String(l.owner || "").toLowerCase() === form.owner.toLowerCase() &&
-          String(l.city || "").toLowerCase() === form.city.toLowerCase()
-        )
-    );
+  if (fetchError) {
+    alert("Errore nel controllo doppioni.");
+    console.error(fetchError);
+    return;
+  }
 
-    const newLead = {
-      id: Date.now(),
+  const duplicate = (existingLeads || []).some(
+    (l: any) =>
+      l.phone === form.phone ||
+      (
+        String(l.owner || "").toLowerCase() === form.owner.toLowerCase() &&
+        String(l.city || "").toLowerCase() === form.city.toLowerCase()
+      )
+  );
+
+  const { error } = await supabase.from("leads").insert([
+    {
       owner: form.owner,
       phone: form.phone,
       city: form.city,
       note: form.note,
       status: "Nuova",
-      images,
       duplicate,
-    };
+      images,
+    },
+  ]);
 
-    localStorage.setItem("leads", JSON.stringify([newLead, ...existing]));
-
-    setForm({
-      owner: "",
-      phone: "",
-      city: "",
-      note: "",
-    });
-    setImages([]);
-
-    alert("Segnalazione inviata.");
+  if (error) {
+    alert("Errore nel salvataggio.");
+    console.error(error);
+    return;
   }
+
+  setForm({
+    owner: "",
+    phone: "",
+    city: "",
+    note: "",
+  });
+  setImages([]);
+
+  alert("Segnalazione inviata.");
+}
 
   return (
     <main style={{ padding: 24, fontFamily: "Arial, sans-serif", maxWidth: 700, margin: "0 auto" }}>
