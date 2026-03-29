@@ -1,21 +1,7 @@
 "use client";
 import { useState } from "react";
 
-type Lead = {
-  id: number;
-  owner: string;
-  phone: string;
-  city: string;
-  note: string;
-  status: string;
-  images: string[];
-  duplicate: boolean;
-};
-
 export default function Home() {
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [view, setView] = useState<"sender" | "admin">("sender");
-
   const [form, setForm] = useState({
     owner: "",
     phone: "",
@@ -25,17 +11,8 @@ export default function Home() {
 
   const [images, setImages] = useState<string[]>([]);
 
-  function isDuplicate(newLead: any) {
-    return leads.some(
-      (l) =>
-        l.phone === newLead.phone ||
-        (l.owner.toLowerCase() === newLead.owner.toLowerCase() &&
-          l.city.toLowerCase() === newLead.city.toLowerCase())
-    );
-  }
-
-  function handleImage(e: any) {
-    const file = e.target.files[0];
+  function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
@@ -47,139 +24,114 @@ export default function Home() {
 
   function saveLead() {
     if (!form.owner || !form.phone || !form.city) {
-      alert("Compila i campi principali");
+      alert("Compila nome, telefono e città.");
       return;
     }
 
-    const duplicate = isDuplicate(form);
+    const existing = JSON.parse(localStorage.getItem("leads") || "[]");
 
-    const newLead: Lead = {
+    const duplicate = existing.some(
+      (l: any) =>
+        l.phone === form.phone ||
+        (
+          String(l.owner || "").toLowerCase() === form.owner.toLowerCase() &&
+          String(l.city || "").toLowerCase() === form.city.toLowerCase()
+        )
+    );
+
+    const newLead = {
       id: Date.now(),
-      ...form,
+      owner: form.owner,
+      phone: form.phone,
+      city: form.city,
+      note: form.note,
       status: "Nuova",
       images,
       duplicate,
     };
 
-    setLeads([newLead, ...leads]);
-    setForm({ owner: "", phone: "", city: "", note: "" });
+    localStorage.setItem("leads", JSON.stringify([newLead, ...existing]));
+
+    setForm({
+      owner: "",
+      phone: "",
+      city: "",
+      note: "",
+    });
     setImages([]);
+
+    alert("Segnalazione inviata.");
   }
 
   return (
-    <div style={{ padding: 20, fontFamily: "Arial" }}>
-      <h1>Segnalazioni Immobiliari</h1>
+    <main style={{ padding: 24, fontFamily: "Arial, sans-serif", maxWidth: 700, margin: "0 auto" }}>
+      <h1 style={{ marginBottom: 8 }}>Segnalapp</h1>
+      <p style={{ marginBottom: 24, color: "#555" }}>
+        Invia una segnalazione immobiliare in modo rapido.
+      </p>
 
-      <div style={{ marginBottom: 20 }}>
-        <button onClick={() => setView("sender")}>Segnalatore</button>
-        <button onClick={() => setView("admin")}>Admin</button>
-      </div>
+      <div style={{ display: "grid", gap: 12 }}>
+        <input
+          placeholder="Nome proprietario / referente"
+          value={form.owner}
+          onChange={(e) => setForm({ ...form, owner: e.target.value })}
+          style={{ padding: 12, borderRadius: 10, border: "1px solid #ccc" }}
+        />
 
-      {view === "sender" && (
+        <input
+          placeholder="Telefono"
+          value={form.phone}
+          onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          style={{ padding: 12, borderRadius: 10, border: "1px solid #ccc" }}
+        />
+
+        <input
+          placeholder="Città"
+          value={form.city}
+          onChange={(e) => setForm({ ...form, city: e.target.value })}
+          style={{ padding: 12, borderRadius: 10, border: "1px solid #ccc" }}
+        />
+
+        <textarea
+          placeholder="Note"
+          value={form.note}
+          onChange={(e) => setForm({ ...form, note: e.target.value })}
+          style={{ padding: 12, borderRadius: 10, border: "1px solid #ccc", minHeight: 120 }}
+        />
+
         <div>
-          <h2>Invia segnalazione</h2>
+          <p><strong>Scatta foto</strong></p>
+          <input type="file" accept="image/*" capture="environment" onChange={handleImage} />
+        </div>
 
-          <input
-            placeholder="Nome"
-            value={form.owner}
-            onChange={(e) => setForm({ ...form, owner: e.target.value })}
-          />
-          <br />
+        <div>
+          <p><strong>Carica da galleria</strong></p>
+          <input type="file" accept="image/*" onChange={handleImage} />
+        </div>
 
-          <input
-            placeholder="Telefono"
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          />
-          <br />
-
-          <input
-            placeholder="Città"
-            value={form.city}
-            onChange={(e) => setForm({ ...form, city: e.target.value })}
-          />
-          <br />
-
-          <textarea
-            placeholder="Note"
-            value={form.note}
-            onChange={(e) => setForm({ ...form, note: e.target.value })}
-          />
-          <br />
-
-          <h4>Foto</h4>
-
-          <div>
-            <p>Scatta foto</p>
-            <input type="file" accept="image/*" capture="environment" onChange={handleImage} />
-          </div>
-
-          <div>
-            <p>Galleria</p>
-            <input type="file" accept="image/*" onChange={handleImage} />
-          </div>
-
-          <div style={{ display: "flex", gap: 10 }}>
+        {!!images.length && (
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {images.map((img, i) => (
-              <img key={i} src={img} width={100} />
+              <img key={i} src={img} alt={`preview-${i}`} width={100} style={{ borderRadius: 8 }} />
             ))}
           </div>
+        )}
 
-          <br />
-          <button onClick={saveLead}>Invia</button>
-        </div>
-      )}
-
-      {view === "admin" && (
-        <div>
-          <h2>Admin</h2>
-
-          {leads.map((lead) => (
-            <div
-              key={lead.id}
-              style={{
-                border: "1px solid gray",
-                padding: 10,
-                marginBottom: 10,
-                background: lead.duplicate ? "#ffe5e5" : "white",
-              }}
-            >
-              <b>{lead.owner}</b>{" "}
-              {lead.duplicate && <span style={{ color: "red" }}>DOPPIONE</span>}
-              <br />
-              {lead.phone} - {lead.city}
-              <br />
-              {lead.note}
-              <br />
-
-              <select
-                value={lead.status}
-                onChange={(e) => {
-                  setLeads(
-                    leads.map((l) =>
-                      l.id === lead.id ? { ...l, status: e.target.value } : l
-                    )
-                  );
-                }}
-              >
-                <option>Nuova</option>
-                <option>Contattata</option>
-                <option>In valutazione</option>
-                <option>Appuntamento</option>
-                <option>Chiusa</option>
-              </select>
-
-              <div style={{ display: "flex", gap: 10 }}>
-                {lead.images.map((img, i) => (
-                  <a key={i} href={img} target="_blank">
-                    <img src={img} width={80} />
-                  </a>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+        <button
+          onClick={saveLead}
+          style={{
+            padding: 14,
+            borderRadius: 10,
+            border: "none",
+            background: "#1f4d8f",
+            color: "white",
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          Invia segnalazione
+        </button>
+      </div>
+    </main>
   );
 }
