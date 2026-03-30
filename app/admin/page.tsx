@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
+
+const supabase = createClient();
 
 type Lead = {
   id: number;
@@ -16,11 +18,7 @@ type Lead = {
   duplicate?: boolean;
 };
 
-const ADMIN_PASSWORD = "1234";
-
 export default function AdminPage() {
-  const [password, setPassword] = useState("");
-  const [unlocked, setUnlocked] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [statusFilter, setStatusFilter] = useState("Tutte");
   const [duplicateFilter, setDuplicateFilter] = useState("Tutti");
@@ -43,14 +41,6 @@ export default function AdminPage() {
 
     loadLeads();
   }, []);
-
-  function login() {
-    if (password === ADMIN_PASSWORD) {
-      setUnlocked(true);
-    } else {
-      alert("Password errata");
-    }
-  }
 
   async function updateStatus(id: number, status: string) {
     const { error } = await supabase
@@ -103,54 +93,6 @@ export default function AdminPage() {
     });
   }, [leads, statusFilter, duplicateFilter]);
 
-  if (!unlocked) {
-    return (
-      <main
-        style={{
-          padding: 24,
-          fontFamily: "Arial, sans-serif",
-          maxWidth: 500,
-          margin: "0 auto",
-        }}
-      >
-        <h1>Area Admin</h1>
-        <p style={{ color: "#555", marginBottom: 16 }}>
-          Inserisci la password per accedere.
-        </p>
-
-        <input
-          type="password"
-          placeholder="Password admin"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{
-            padding: 12,
-            borderRadius: 10,
-            border: "1px solid #ccc",
-            width: "100%",
-            marginBottom: 12,
-          }}
-        />
-
-        <button
-          onClick={login}
-          style={{
-            padding: 14,
-            borderRadius: 10,
-            border: "none",
-            background: "#111",
-            color: "white",
-            fontWeight: 700,
-            cursor: "pointer",
-            width: "100%",
-          }}
-        >
-          Entra
-        </button>
-      </main>
-    );
-  }
-
   return (
     <>
       <main
@@ -173,19 +115,35 @@ export default function AdminPage() {
         >
           <h1 style={{ margin: 0 }}>Admin Segnalapp</h1>
 
-          <Link
-            href="/admin/segnalatori"
-            style={{
-              textDecoration: "none",
-              padding: "10px 14px",
-              borderRadius: 8,
-              background: "#1f4d8f",
-              color: "white",
-              fontWeight: 700,
-            }}
-          >
-            Vai ai segnalatori
-          </Link>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Link
+              href="/admin/segnalatori"
+              style={{
+                textDecoration: "none",
+                padding: "10px 14px",
+                borderRadius: 8,
+                background: "#1f4d8f",
+                color: "white",
+                fontWeight: 700,
+              }}
+            >
+              Vai ai segnalatori
+            </Link>
+
+            <Link
+              href="/login"
+              style={{
+                textDecoration: "none",
+                padding: "10px 14px",
+                borderRadius: 8,
+                background: "#444",
+                color: "white",
+                fontWeight: 700,
+              }}
+            >
+              Vai al login
+            </Link>
+          </div>
         </div>
 
         <div

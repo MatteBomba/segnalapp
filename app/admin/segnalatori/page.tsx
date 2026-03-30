@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
+
+const supabase = createClient();
 
 type Lead = {
   id: number;
@@ -11,11 +13,7 @@ type Lead = {
   duplicate?: boolean;
 };
 
-const ADMIN_PASSWORD = "1234";
-
 export default function SegnalatoriPage() {
-  const [password, setPassword] = useState("");
-  const [unlocked, setUnlocked] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
 
   useEffect(() => {
@@ -34,14 +32,6 @@ export default function SegnalatoriPage() {
 
     loadLeads();
   }, []);
-
-  function login() {
-    if (password === ADMIN_PASSWORD) {
-      setUnlocked(true);
-    } else {
-      alert("Password errata");
-    }
-  }
 
   const reporters = useMemo(() => {
     const map = new Map<
@@ -97,54 +87,6 @@ export default function SegnalatoriPage() {
     return Array.from(map.values()).sort((a, b) => b.score - a.score);
   }, [leads]);
 
-  if (!unlocked) {
-    return (
-      <main
-        style={{
-          padding: 24,
-          fontFamily: "Arial, sans-serif",
-          maxWidth: 500,
-          margin: "0 auto",
-        }}
-      >
-        <h1>Area Segnalatori</h1>
-        <p style={{ color: "#555", marginBottom: 16 }}>
-          Inserisci la password per accedere.
-        </p>
-
-        <input
-          type="password"
-          placeholder="Password admin"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{
-            padding: 12,
-            borderRadius: 10,
-            border: "1px solid #ccc",
-            width: "100%",
-            marginBottom: 12,
-          }}
-        />
-
-        <button
-          onClick={login}
-          style={{
-            padding: 14,
-            borderRadius: 10,
-            border: "none",
-            background: "#111",
-            color: "white",
-            fontWeight: 700,
-            cursor: "pointer",
-            width: "100%",
-          }}
-        >
-          Entra
-        </button>
-      </main>
-    );
-  }
-
   return (
     <main
       style={{
@@ -166,19 +108,35 @@ export default function SegnalatoriPage() {
       >
         <h1 style={{ margin: 0 }}>Archivio segnalatori</h1>
 
-        <Link
-          href="/admin"
-          style={{
-            textDecoration: "none",
-            padding: "10px 14px",
-            borderRadius: 8,
-            background: "#1f4d8f",
-            color: "white",
-            fontWeight: 700,
-          }}
-        >
-          Torna alle lead
-        </Link>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <Link
+            href="/admin"
+            style={{
+              textDecoration: "none",
+              padding: "10px 14px",
+              borderRadius: 8,
+              background: "#1f4d8f",
+              color: "white",
+              fontWeight: 700,
+            }}
+          >
+            Torna alle lead
+          </Link>
+
+          <Link
+            href="/login"
+            style={{
+              textDecoration: "none",
+              padding: "10px 14px",
+              borderRadius: 8,
+              background: "#444",
+              color: "white",
+              fontWeight: 700,
+            }}
+          >
+            Vai al login
+          </Link>
+        </div>
       </div>
 
       {reporters.length === 0 && <p>Nessun segnalatore registrato.</p>}
