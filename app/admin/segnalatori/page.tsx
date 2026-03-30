@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
-const supabase = createClient();
+export const dynamic = "force-dynamic";
 
 type Lead = {
   id: number;
@@ -14,6 +14,7 @@ type Lead = {
 };
 
 export default function SegnalatoriPage() {
+  const supabase = createClient() ;
   const [leads, setLeads] = useState<Lead[]>([]);
 
   useEffect(() => {

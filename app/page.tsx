@@ -2,9 +2,9 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-const supabase = createClient();
-
 export default function Home() {
+  const supabase = createClient ();
+  
   const [form, setForm] = useState({
     reporterName: "",
     reporterPhone: "",
