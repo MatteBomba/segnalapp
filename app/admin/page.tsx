@@ -1,9 +1,12 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 type Lead = {
   id: number;
+  reporter_name?: string;
+  reporter_phone?: string;
   owner: string;
   phone: string;
   city: string;
@@ -13,7 +16,7 @@ type Lead = {
   duplicate?: boolean;
 };
 
-const ADMIN_PASSWORD = "Segn@lappSen10rme%=";
+const ADMIN_PASSWORD = "1234";
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
@@ -158,7 +161,32 @@ export default function AdminPage() {
           margin: "0 auto",
         }}
       >
-        <h1>Admin Segnalapp</h1>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+            marginBottom: 20,
+          }}
+        >
+          <h1 style={{ margin: 0 }}>Admin Segnalapp</h1>
+
+          <Link
+            href="/admin/segnalatori"
+            style={{
+              textDecoration: "none",
+              padding: "10px 14px",
+              borderRadius: 8,
+              background: "#1f4d8f",
+              color: "white",
+              fontWeight: 700,
+            }}
+          >
+            Vai ai segnalatori
+          </Link>
+        </div>
 
         <div
           style={{
@@ -216,12 +244,20 @@ export default function AdminPage() {
             <div>{lead.city}</div>
             <div style={{ margin: "8px 0" }}>{lead.note}</div>
 
+            <div style={{ marginTop: 8, fontSize: 14, color: "#444" }}>
+              <strong>Segnalatore:</strong> {lead.reporter_name || "—"}
+            </div>
+            <div style={{ marginTop: 4, fontSize: 14, color: "#444" }}>
+              <strong>Tel. segnalatore:</strong> {lead.reporter_phone || "—"}
+            </div>
+
             <div
               style={{
                 display: "flex",
                 gap: 10,
                 flexWrap: "wrap",
                 alignItems: "center",
+                marginTop: 12,
                 marginBottom: 12,
               }}
             >
