@@ -123,6 +123,20 @@ export default function AdminPage() {
     });
   }, [leads, statusFilter, duplicateFilter]);
 
+  const dashboardStats = useMemo(() => {
+  return {
+    total: leads.length,
+    new: leads.filter((lead) => lead.status === "Nuova").length,
+    toContact: leads.filter((lead) => lead.status === "Da contattare").length,
+    contacted: leads.filter((lead) => lead.status === "Contattata").length,
+    appointments: leads.filter((lead) => lead.status === "Appuntamento fissato").length,
+    negotiation: leads.filter((lead) => lead.status === "In trattativa").length,
+    acquired: leads.filter((lead) => lead.status === "Acquisito").length,
+    sold: leads.filter((lead) => lead.status === "Venduto").length,
+    duplicates: leads.filter((lead) => !!lead.duplicate).length,
+  };
+}, [leads]);
+
   return (
     <>
       <main
@@ -183,6 +197,55 @@ export default function AdminPage() {
             </button>
           </div>
         </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gap: 12,
+            marginBottom: 24,
+          }}
+        >
+         <div style={{ background: "white", borderRadius: 12, padding: 16, border: "1px solid #ddd" }}>
+           <div style={{ fontSize: 13, color: "#666" }}>Totale lead</div>
+           <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.total}</div>
+         </div>
+
+          <div style={{ background: "#f8f9fa", borderRadius: 12, padding: 16, border: "1px solid #ddd" }}>
+           <div style={{ fontSize: 13, color: "#666" }}>Nuove</div>
+           <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.new}</div>
+         </div>
+
+         <div style={{ background: "#e7f1ff", borderRadius: 12, padding: 16, border: "1px solid #ddd" }}>
+           <div style={{ fontSize: 13, color: "#666" }}>Da contattare</div>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.toContact}</div>
+         </div>
+
+        <div style={{ background: "#fff3cd", borderRadius: 12, padding: 16, border: "1px solid #ddd" }}>
+          <div style={{ fontSize: 13, color: "#666" }}>Appuntamenti</div>
+          <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.appointments}</div>
+        </div>
+
+        <div style={{ background: "#ffe5d0", borderRadius: 12, padding: 16, border: "1px solid #ddd" }}>
+          <div style={{ fontSize: 13, color: "#666" }}>Trattative</div>
+          <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.negotiation}</div>
+        </div>
+
+        <div style={{ background: "#d1e7dd", borderRadius: 12, padding: 16, border: "1px solid #ddd" }}>
+          <div style={{ fontSize: 13, color: "#666" }}>Acquisiti</div>
+          <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.acquired}</div>
+        </div>
+
+        <div style={{ background: "#cfe2d9", borderRadius: 12, padding: 16, border: "1px solid #ddd" }}>
+          <div style={{ fontSize: 13, color: "#666" }}>Venduti</div>
+          <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.sold}</div>
+        </div>
+
+        <div style={{ background: "#f8d7da", borderRadius: 12, padding: 16, border: "1px solid #ddd" }}>
+          <div style={{ fontSize: 13, color: "#666" }}>Doppioni</div>
+          <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.duplicates}</div>
+        </div>
+      </div>
 
         <div
           style={{
