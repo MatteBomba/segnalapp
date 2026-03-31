@@ -19,12 +19,17 @@ type Lead = {
 };
 
 export default function AdminPage() {
-  const supabase = createClient() ;
-  
+  const supabase = createClient();
+
   const [leads, setLeads] = useState<Lead[]>([]);
   const [statusFilter, setStatusFilter] = useState("Tutte");
   const [duplicateFilter, setDuplicateFilter] = useState("Tutti");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
 
   useEffect(() => {
     async function loadLeads() {
@@ -42,7 +47,7 @@ export default function AdminPage() {
     }
 
     loadLeads();
-  }, []);
+  }, [supabase]);
 
   async function updateStatus(id: number, status: string) {
     const { error } = await supabase
@@ -77,6 +82,29 @@ export default function AdminPage() {
     }
 
     setLeads((prev) => prev.filter((lead) => lead.id !== id));
+  }
+
+  function getStatusColor(status: string) {
+    switch (status) {
+      case "Nuova":
+        return "#6c757d";
+      case "Da contattare":
+        return "#0d6efd";
+      case "Contattata":
+        return "#0dcaf0";
+      case "Non interessato":
+        return "#dc3545";
+      case "Appuntamento fissato":
+        return "#ffc107";
+      case "In trattativa":
+        return "#fd7e14";
+      case "Acquisito":
+        return "#198754";
+      case "Venduto":
+        return "#14532d";
+      default:
+        return "#999";
+    }
   }
 
   const filteredLeads = useMemo(() => {
@@ -117,7 +145,14 @@ export default function AdminPage() {
         >
           <h1 style={{ margin: 0 }}>Admin Segnalapp</h1>
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
             <Link
               href="/admin/segnalatori"
               style={{
@@ -132,19 +167,20 @@ export default function AdminPage() {
               Vai ai segnalatori
             </Link>
 
-            <Link
-              href="/login"
+            <button
+              onClick={handleLogout}
               style={{
-                textDecoration: "none",
                 padding: "10px 14px",
                 borderRadius: 8,
-                background: "#444",
+                border: "none",
+                background: "#b91c1c",
                 color: "white",
                 fontWeight: 700,
+                cursor: "pointer",
               }}
             >
-              Vai al login
-            </Link>
+              Logout
+            </button>
           </div>
         </div>
 
@@ -163,10 +199,13 @@ export default function AdminPage() {
           >
             <option>Tutte</option>
             <option>Nuova</option>
+            <option>Da contattare</option>
             <option>Contattata</option>
-            <option>In valutazione</option>
-            <option>Appuntamento</option>
-            <option>Chiusa</option>
+            <option>Non interessato</option>
+            <option>Appuntamento fissato</option>
+            <option>In trattativa</option>
+            <option>Acquisito</option>
+            <option>Venduto</option>
           </select>
 
           <select
@@ -194,10 +233,26 @@ export default function AdminPage() {
             }}
           >
             <div style={{ marginBottom: 8 }}>
-              <strong>{lead.owner}</strong>{" "}
-              {lead.duplicate && (
-                <span style={{ color: "red", fontWeight: 700 }}>DOPPIONE</span>
-              )}
+              <div
+                style={{
+                  display: "inline-block",
+                  padding: "4px 10px",
+                  borderRadius: 8,
+                  background: getStatusColor(lead.status),
+                  color: lead.status === "Appuntamento fissato" ? "#222" : "white",
+                  fontSize: 12,
+                  marginBottom: 8,
+                }}
+              >
+                {lead.status}
+              </div>
+
+              <div>
+                <strong>{lead.owner}</strong>{" "}
+                {lead.duplicate && (
+                  <span style={{ color: "red", fontWeight: 700 }}>DOPPIONE</span>
+                )}
+              </div>
             </div>
 
             <div>{lead.phone}</div>
@@ -227,10 +282,13 @@ export default function AdminPage() {
                 style={{ padding: 10, borderRadius: 8 }}
               >
                 <option>Nuova</option>
+                <option>Da contattare</option>
                 <option>Contattata</option>
-                <option>In valutazione</option>
-                <option>Appuntamento</option>
-                <option>Chiusa</option>
+                <option>Non interessato</option>
+                <option>Appuntamento fissato</option>
+                <option>In trattativa</option>
+                <option>Acquisito</option>
+                <option>Venduto</option>
               </select>
 
               <button

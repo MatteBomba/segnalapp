@@ -14,8 +14,13 @@ type Lead = {
 };
 
 export default function SegnalatoriPage() {
-  const supabase = createClient() ;
+  const supabase = createClient();
   const [leads, setLeads] = useState<Lead[]>([]);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
 
   useEffect(() => {
     async function loadLeads() {
@@ -32,7 +37,7 @@ export default function SegnalatoriPage() {
     }
 
     loadLeads();
-  }, []);
+  }, [supabase]);
 
   const reporters = useMemo(() => {
     const map = new Map<
@@ -42,7 +47,9 @@ export default function SegnalatoriPage() {
         phone: string;
         leads: number;
         duplicates: number;
-        goodLeads: number;
+        appointments: number;
+        acquired: number;
+        sold: number;
         score: number;
       }
     >();
@@ -58,7 +65,9 @@ export default function SegnalatoriPage() {
           phone: lead.reporter_phone || "",
           leads: 0,
           duplicates: 0,
-          goodLeads: 0,
+          appointments: 0,
+          acquired: 0,
+          sold: 0,
           score: 0,
         });
       }
@@ -74,14 +83,19 @@ export default function SegnalatoriPage() {
         reporter.score += 2;
       }
 
-      if (lead.status === "Appuntamento") {
-        reporter.goodLeads += 1;
+      if (lead.status === "Appuntamento fissato") {
+        reporter.appointments += 1;
         reporter.score += 5;
       }
 
-      if (lead.status === "Chiusa") {
-        reporter.goodLeads += 1;
+      if (lead.status === "Acquisito") {
+        reporter.acquired += 1;
         reporter.score += 10;
+      }
+
+      if (lead.status === "Venduto") {
+        reporter.sold += 1;
+        reporter.score += 20;
       }
     });
 
@@ -109,7 +123,14 @@ export default function SegnalatoriPage() {
       >
         <h1 style={{ margin: 0 }}>Archivio segnalatori</h1>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
           <Link
             href="/admin"
             style={{
@@ -119,24 +140,26 @@ export default function SegnalatoriPage() {
               background: "#1f4d8f",
               color: "white",
               fontWeight: 700,
+              display: "inline-block",
             }}
           >
             Torna alle lead
           </Link>
 
-          <Link
-            href="/login"
+          <button
+            onClick={handleLogout}
             style={{
-              textDecoration: "none",
               padding: "10px 14px",
               borderRadius: 8,
-              background: "#444",
+              border: "none",
+              background: "#b91c1c",
               color: "white",
               fontWeight: 700,
+              cursor: "pointer",
             }}
           >
-            Vai al login
-          </Link>
+            Logout
+          </button>
         </div>
       </div>
 
@@ -155,10 +178,16 @@ export default function SegnalatoriPage() {
         >
           <div><strong>{reporter.name}</strong></div>
           <div>{reporter.phone || "—"}</div>
-          <div style={{ marginTop: 8 }}>Segnalazioni: {reporter.leads}</div>
+
+          <div style={{ marginTop: 8 }}>Segnalazioni totali: {reporter.leads}</div>
           <div>Doppioni: {reporter.duplicates}</div>
-          <div>Lead buone: {reporter.goodLeads}</div>
-          <div><strong>Punteggio: {reporter.score}</strong></div>
+          <div>Appuntamenti fissati: {reporter.appointments}</div>
+          <div>Acquisiti: {reporter.acquired}</div>
+          <div>Venduti: {reporter.sold}</div>
+
+          <div style={{ marginTop: 10 }}>
+            <strong>Punteggio: {reporter.score}</strong>
+          </div>
         </div>
       ))}
     </main>
