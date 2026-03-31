@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 type Lead = {
   id: number;
+  reporter_id?: number;
   reporter_name?: string;
   reporter_phone?: string;
   owner: string;
@@ -49,22 +50,85 @@ export default function AdminPage() {
     loadLeads();
   }, [supabase]);
 
-  async function updateStatus(id: number, status: string) {
-    const { error } = await supabase
-      .from("leads")
-      .update({ status })
-      .eq("id", id);
+  async function updateStatus(id: number, newStatus: string) {
+  const lead = leads.find((l) => l.id === id);
+  if (!lead) return;
 
-    if (error) {
-      alert("Errore aggiornando lo stato.");
-      console.error(error);
-      return;
-    }
+  const oldStatus = lead.status;
 
-    setLeads((prev) =>
-      prev.map((lead) => (lead.id === id ? { ...lead, status } : lead))
-    );
+  const { error } = await supabase
+    .from("leads")
+    .update({ status: newStatus })
+    .eq("id", id);
+
+  if (error) {
+    alert("Errore aggiornando lo stato.");
+    console.error(error);
+    return;
   }
+
+  setLeads((prev) =>
+    prev.map((l) => (l.id === id ? { ...l, status: newStatus } : l))
+  );
+
+  if (!lead.reporter_id) return;
+
+  const { data: reporter, error: reporterError } = await supabase
+    .from("reporters")
+    .select("*")
+    .eq("id", lead.reporter_id)
+    .single();
+
+  if (reporterError || !reporter) {
+    console.error(reporterError);
+    return;
+  }
+
+  let appointments = reporter.appointments;
+  let acquired = reporter.acquired;
+  let sold = reporter.sold;
+  let score = reporter.score;
+
+  if (oldStatus === "Appuntamento fissato") {
+    appointments -= 1;
+    score -= 5;
+  }
+  if (oldStatus === "Acquisito") {
+    acquired -= 1;
+    score -= 10;
+  }
+  if (oldStatus === "Venduto") {
+    sold -= 1;
+    score -= 20;
+  }
+
+  if (newStatus === "Appuntamento fissato") {
+    appointments += 1;
+    score += 5;
+  }
+  if (newStatus === "Acquisito") {
+    acquired += 1;
+    score += 10;
+  }
+  if (newStatus === "Venduto") {
+    sold += 1;
+    score += 20;
+  }
+
+  const { error: reporterUpdateError } = await supabase
+    .from("reporters")
+    .update({
+      appointments,
+      acquired,
+      sold,
+      score,
+    })
+    .eq("id", lead.reporter_id);
+
+  if (reporterUpdateError) {
+    console.error(reporterUpdateError);
+  }
+}
 
   async function deleteLead(id: number) {
     const conferma = window.confirm("Vuoi davvero eliminare questa segnalazione?");

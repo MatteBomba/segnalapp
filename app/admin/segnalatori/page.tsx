@@ -1,21 +1,26 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 export const dynamic = "force-dynamic";
 
-type Lead = {
+type Reporter = {
   id: number;
-  reporter_name?: string;
-  reporter_phone?: string;
-  status: string;
-  duplicate?: boolean;
+  name: string;
+  phone: string;
+  score: number;
+  total_leads: number;
+  duplicates: number;
+  appointments: number;
+  acquired: number;
+  sold: number;
+  is_active: boolean;
 };
 
 export default function SegnalatoriPage() {
   const supabase = createClient();
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [reporters, setReporters] = useState<Reporter[]>([]);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -23,84 +28,41 @@ export default function SegnalatoriPage() {
   }
 
   useEffect(() => {
-    async function loadLeads() {
+    async function loadReporters() {
       const { data, error } = await supabase
-        .from("leads")
-        .select("id, reporter_name, reporter_phone, status, duplicate");
+        .from("reporters")
+        .select("*")
+        .eq("is_active", true)
+        .order("score", { ascending: false });
 
       if (error) {
         console.error(error);
         return;
       }
 
-      setLeads(data || []);
+      setReporters(data || []);
     }
 
-    loadLeads();
+    loadReporters();
   }, [supabase]);
 
-  const reporters = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        name: string;
-        phone: string;
-        leads: number;
-        duplicates: number;
-        appointments: number;
-        acquired: number;
-        sold: number;
-        score: number;
-      }
-    >();
+  async function deleteReporter(id: number) {
+    const conferma = window.confirm("Vuoi davvero eliminare questo segnalatore?");
+    if (!conferma) return;
 
-    leads.forEach((lead) => {
-      const name = (lead.reporter_name || "Sconosciuto").trim().toLowerCase();
-      const phone = (lead.reporter_phone || "").replace(/\s/g, "");
-      const key = `${name}__${phone}`;
+    const { error } = await supabase
+      .from("reporters")
+      .update({ is_active: false })
+      .eq("id", id);
 
-      if (!map.has(key)) {
-        map.set(key, {
-          name: lead.reporter_name || "Sconosciuto",
-          phone: lead.reporter_phone || "",
-          leads: 0,
-          duplicates: 0,
-          appointments: 0,
-          acquired: 0,
-          sold: 0,
-          score: 0,
-        });
-      }
+    if (error) {
+      alert("Errore eliminando il segnalatore.");
+      console.error(error);
+      return;
+    }
 
-      const reporter = map.get(key)!;
-
-      reporter.leads += 1;
-
-      if (lead.duplicate) {
-        reporter.duplicates += 1;
-        reporter.score -= 2;
-      } else {
-        reporter.score += 2;
-      }
-
-      if (lead.status === "Appuntamento fissato") {
-        reporter.appointments += 1;
-        reporter.score += 5;
-      }
-
-      if (lead.status === "Acquisito") {
-        reporter.acquired += 1;
-        reporter.score += 10;
-      }
-
-      if (lead.status === "Venduto") {
-        reporter.sold += 1;
-        reporter.score += 20;
-      }
-    });
-
-    return Array.from(map.values()).sort((a, b) => b.score - a.score);
-  }, [leads]);
+    setReporters((prev) => prev.filter((r) => r.id !== id));
+  }
 
   return (
     <main
@@ -165,9 +127,9 @@ export default function SegnalatoriPage() {
 
       {reporters.length === 0 && <p>Nessun segnalatore registrato.</p>}
 
-      {reporters.map((reporter, index) => (
+      {reporters.map((reporter) => (
         <div
-          key={`${reporter.name}-${reporter.phone}-${index}`}
+          key={reporter.id}
           style={{
             background: "white",
             border: "1px solid #ddd",
@@ -179,7 +141,7 @@ export default function SegnalatoriPage() {
           <div><strong>{reporter.name}</strong></div>
           <div>{reporter.phone || "—"}</div>
 
-          <div style={{ marginTop: 8 }}>Segnalazioni totali: {reporter.leads}</div>
+          <div style={{ marginTop: 8 }}>Segnalazioni totali: {reporter.total_leads}</div>
           <div>Doppioni: {reporter.duplicates}</div>
           <div>Appuntamenti fissati: {reporter.appointments}</div>
           <div>Acquisiti: {reporter.acquired}</div>
@@ -188,6 +150,22 @@ export default function SegnalatoriPage() {
           <div style={{ marginTop: 10 }}>
             <strong>Punteggio: {reporter.score}</strong>
           </div>
+
+          <button
+            onClick={() => deleteReporter(reporter.id)}
+            style={{
+              marginTop: 12,
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: "none",
+              background: "#6b7280",
+              color: "white",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Archivia segnalatore
+          </button>
         </div>
       ))}
     </main>

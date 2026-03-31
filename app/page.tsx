@@ -28,64 +28,137 @@ export default function Home() {
     reader.readAsDataURL(file);
   }
 
-  async function saveLead() {
-    if (!form.owner || !form.phone || !form.city) {
-      alert("Compila nome, telefono e città.");
-      return;
-    }
-
-    const { data: existingLeads, error: fetchError } = await supabase
-      .from("leads")
-      .select("owner, phone, city");
-
-    if (fetchError) {
-      alert("Errore nel controllo doppioni.");
-      console.error(fetchError);
-      return;
-    }
-
-    const duplicate = (existingLeads || []).some(
-      (l: any) =>
-        l.phone === form.phone ||
-        (
-          String(l.owner || "").toLowerCase() === form.owner.toLowerCase() &&
-          String(l.city || "").toLowerCase() === form.city.toLowerCase()
-        )
-    );
-
-    const { error } = await supabase.from("leads").insert([
-      {
-        reporter_name: form.reporterName,
-        reporter_phone: form.reporterPhone,
-        owner: form.owner,
-        phone: form.phone,
-        city: form.city,
-        note: form.note,
-        status: "Nuova",
-        duplicate,
-        images,
-      },
-    ]);
-
-    if (error) {
-      alert("Errore nel salvataggio.");
-      console.error(error);
-      return;
-    }
-
-    setForm({
-      reporterName: "",
-      reporterPhone: "",
-      owner: "",
-      phone: "",
-      city: "",
-      note: "",
-    });
-    setImages([]);
-    setShowForm(false);
-
-    alert("Segnalazione inviata.");
+async function saveLead() {
+  if (!form.owner || !form.phone || !form.city) {
+    alert("Compila nome, telefono e città.");
+    return;
   }
+
+  const reporterName = form.reporterName.trim();
+  const reporterPhone = form.reporterPhone.replace(/\s/g, "").trim();
+
+  if (!reporterName || !reporterPhone) {
+    alert("Compila nome e telefono del segnalatore.");
+    return;
+  }
+
+  const { data: existingLeads, error: fetchError } = await supabase
+    .from("leads")
+    .select("owner, phone, city");
+
+  if (fetchError) {
+    alert("Errore nel controllo doppioni.");
+    console.error(fetchError);
+    return;
+  }
+
+  const duplicate = (existingLeads || []).some(
+    (l: any) =>
+      l.phone === form.phone ||
+      (
+        String(l.owner || "").toLowerCase() === form.owner.toLowerCase() &&
+        String(l.city || "").toLowerCase() === form.city.toLowerCase()
+      )
+  );
+
+  let reporterId: number | null = null;
+
+  const { data: reporterRows, error: reporterFindError } = await supabase
+  .from("reporters")
+  .select("*")
+  .eq("phone", reporterPhone)
+  .eq("is_active", true)
+  .limit(1);
+
+if (reporterFindError) {
+  alert("Errore nel recupero del segnalatore.");
+  console.error(reporterFindError);
+  return;
+}
+
+const reporterFound = reporterRows && reporterRows.length > 0 ? reporterRows[0] : null;
+
+  if (reporterFindError) {
+    alert("Errore nel recupero del segnalatore.");
+    console.error(reporterFindError);
+    return;
+  }
+
+  if (reporterFound) {
+    reporterId = reporterFound.id;
+
+    const { error: reporterUpdateError } = await supabase
+      .from("reporters")
+      .update({
+        total_leads: reporterFound.total_leads + 1,
+        duplicates: reporterFound.duplicates + (duplicate ? 1 : 0),
+        score: reporterFound.score + (duplicate ? -2 : 2),
+      })
+      .eq("id", reporterId);
+
+    if (reporterUpdateError) {
+      alert("Errore aggiornando il segnalatore.");
+      console.error(reporterUpdateError);
+      return;
+    }
+  } else {
+    const { data: newReporter, error: reporterInsertError } = await supabase
+      .from("reporters")
+      .insert([
+        {
+          name: reporterName,
+          phone: reporterPhone,
+          total_leads: 1,
+          duplicates: duplicate ? 1 : 0,
+          score: duplicate ? -2 : 2,
+        },
+      ])
+      .select()
+      .single();
+
+    if (reporterInsertError) {
+      alert("Errore creando il segnalatore.");
+      console.error(reporterInsertError);
+      return;
+    }
+
+    reporterId = newReporter.id;
+  }
+
+  const { error } = await supabase.from("leads").insert([
+    {
+      reporter_id: reporterId,
+      reporter_name: reporterName,
+      reporter_phone: reporterPhone,
+      owner: form.owner,
+      phone: form.phone,
+      city: form.city,
+      note: form.note,
+      status: "Nuova",
+      duplicate,
+      images,
+    },
+  ]);
+
+  if (error) {
+    alert("Errore nel salvataggio.");
+    console.error(error);
+    return;
+  }
+
+  setForm({
+    reporterName: "",
+    reporterPhone: "",
+    owner: "",
+    phone: "",
+    city: "",
+    note: "",
+  });
+  setImages([]);
+  setShowForm(false);
+
+  alert("Segnalazione inviata.");
+}
 
   return (
     <main
