@@ -207,7 +207,7 @@ export default function Home() {
     setPreviewUrls([]);
     setShowForm(false);
 
-    alert("Segnalazione inviata.");
+    alert("Grazie per la Segnalazione.");
   }
 
   return (
@@ -225,7 +225,7 @@ export default function Home() {
         <div style={{ marginBottom: 20 }}>
           <h1 style={{ color: "white", margin: 0 }}>Segnalapp</h1>
           <p style={{ color: "white", opacity: 0.8, marginTop: 4 }}>
-            Segnala immobili in modo rapido
+            Segnala immobili rapidamente
           </p>
         </div>
 
@@ -367,7 +367,8 @@ export default function Home() {
               }}
             />
 
-            <div style={{ marginBottom: 10 }}>
+           <div style={{ marginBottom: 12 }}>
+            <div style={{ marginBottom: 6, fontWeight: 700 }}>Scatta foto</div>
               <input
                 type="file"
                 accept="image/*"
@@ -375,6 +376,15 @@ export default function Home() {
                 onChange={handleImage}
               />
             </div>
+            
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ marginBottom: 6, fontWeight: 700 }}>Carica da galleria</div>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImage}
+            />
+          </div>
 
             {!!previewUrls.length && (
               <div

@@ -22,6 +22,20 @@ type Lead = {
 export default function AdminPage() {
   const supabase = createClient();
 
+  function extractStoragePath(publicUrl: string) {
+  try {
+    const url = new URL(publicUrl);
+    const marker = "/storage/v1/object/public/lead-images/";
+    const idx = url.pathname.indexOf(marker);
+
+    if (idx === -1) return null;
+
+    return decodeURIComponent(url.pathname.substring(idx + marker.length));
+  } catch {
+    return null;
+  }
+}
+
   const [leads, setLeads] = useState<Lead[]>([]);
   const [statusFilter, setStatusFilter] = useState("Tutte");
   const [duplicateFilter, setDuplicateFilter] = useState("Tutti");
@@ -132,22 +146,46 @@ export default function AdminPage() {
 }
 
   async function deleteLead(id: number) {
-    const conferma = window.confirm("Vuoi davvero eliminare questa segnalazione?");
-    if (!conferma) return;
+  const conferma = window.confirm("Vuoi davvero eliminare questa segnalazione?");
+  if (!conferma) return;
 
-    const { error } = await supabase
-      .from("leads")
-      .delete()
-      .eq("id", id);
+  const leadToDelete = leads.find((lead) => lead.id === id);
 
-    if (error) {
-      alert("Errore eliminando la segnalazione.");
-      console.error(error);
+  if (!leadToDelete) {
+    alert("Segnalazione non trovata.");
+    return;
+  }
+
+  const imagePaths =
+    leadToDelete.images
+      ?.map((img) => extractStoragePath(img))
+      .filter(Boolean) as string[];
+
+  if (imagePaths.length > 0) {
+    const { error: storageError } = await supabase.storage
+      .from("lead-images")
+      .remove(imagePaths);
+
+    if (storageError) {
+      alert("Errore eliminando le immagini dal bucket.");
+      console.error(storageError);
       return;
     }
-
-    setLeads((prev) => prev.filter((lead) => lead.id !== id));
   }
+
+  const { error } = await supabase
+    .from("leads")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    alert("Errore eliminando la segnalazione.");
+    console.error(error);
+    return;
+  }
+
+  setLeads((prev) => prev.filter((lead) => lead.id !== id));
+}
 
   function getStatusColor(status: string) {
     switch (status) {
