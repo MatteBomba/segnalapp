@@ -26,6 +26,7 @@ export default function AdminPage() {
   const [statusFilter, setStatusFilter] = useState("Tutte");
   const [duplicateFilter, setDuplicateFilter] = useState("Tutti");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -171,21 +172,46 @@ export default function AdminPage() {
     }
   }
 
+  <input
+  type="text"
+  placeholder="Cerca per proprietario, telefono, città o segnalatore"
+  value={searchTerm}
+  onChange={(e) => setSearchTerm(e.target.value)}
+  style={{
+    width: "100%",
+    padding: 12,
+    borderRadius: 10,
+    border: "1px solid #ccc",
+    marginBottom: 16,
+  }}
+/>
+
   const filteredLeads = useMemo(() => {
-    return leads.filter((lead) => {
-      const okStatus =
-        statusFilter === "Tutte" ? true : lead.status === statusFilter;
+  return leads.filter((lead) => {
+    const okStatus =
+      statusFilter === "Tutte" ? true : lead.status === statusFilter;
 
-      const okDuplicate =
-        duplicateFilter === "Tutti"
-          ? true
-          : duplicateFilter === "Doppioni"
-          ? !!lead.duplicate
-          : !lead.duplicate;
+    const okDuplicate =
+      duplicateFilter === "Tutti"
+        ? true
+        : duplicateFilter === "Doppioni"
+        ? !!lead.duplicate
+        : !lead.duplicate;
 
-      return okStatus && okDuplicate;
-    });
-  }, [leads, statusFilter, duplicateFilter]);
+    const q = searchTerm.trim().toLowerCase();
+
+    const okSearch =
+      q === ""
+        ? true
+        : String(lead.owner || "").toLowerCase().includes(q) ||
+          String(lead.phone || "").toLowerCase().includes(q) ||
+          String(lead.city || "").toLowerCase().includes(q) ||
+          String(lead.reporter_name || "").toLowerCase().includes(q) ||
+          String(lead.reporter_phone || "").toLowerCase().includes(q);
+
+    return okStatus && okDuplicate && okSearch;
+  });
+}, [leads, statusFilter, duplicateFilter, searchTerm]);
 
   const dashboardStats = useMemo(() => {
   return {
@@ -270,46 +296,73 @@ export default function AdminPage() {
             marginBottom: 24,
           }}
         >
-         <div style={{ background: "white", borderRadius: 12, padding: 16, border: "1px solid #ddd" }}>
-           <div style={{ fontSize: 13, color: "#666" }}>Totale lead</div>
-           <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.total}</div>
-         </div>
+          <div
+            onClick={() => {
+              setStatusFilter("Tutte");
+              setDuplicateFilter("Tutti");
+            }}
+            style={{ background: "white", borderRadius: 12, padding: 16, border: "1px solid #ddd", cursor: "pointer" }}
+          >
+            <div style={{ fontSize: 13, color: "#666" }}>Totale lead</div>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.total}</div>
+          </div>
 
-          <div style={{ background: "#f8f9fa", borderRadius: 12, padding: 16, border: "1px solid #ddd" }}>
-           <div style={{ fontSize: 13, color: "#666" }}>Nuove</div>
-           <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.new}</div>
-         </div>
+          <div
+            onClick={() => setStatusFilter("Nuova")}
+            style={{ background: "#f8f9fa", borderRadius: 12, padding: 16, border: "1px solid #ddd", cursor: "pointer" }}
+          >
+            <div style={{ fontSize: 13, color: "#666" }}>Nuove</div>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.new}</div>
+          </div>
 
-         <div style={{ background: "#e7f1ff", borderRadius: 12, padding: 16, border: "1px solid #ddd" }}>
-           <div style={{ fontSize: 13, color: "#666" }}>Da contattare</div>
+          <div
+            onClick={() => setStatusFilter("Da contattare")}
+            style={{ background: "#e7f1ff", borderRadius: 12, padding: 16, border: "1px solid #ddd", cursor: "pointer" }}
+          >
+            <div style={{ fontSize: 13, color: "#666" }}>Da contattare</div>
             <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.toContact}</div>
-         </div>
+          </div>
 
-        <div style={{ background: "#fff3cd", borderRadius: 12, padding: 16, border: "1px solid #ddd" }}>
-          <div style={{ fontSize: 13, color: "#666" }}>Appuntamenti</div>
-          <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.appointments}</div>
-        </div>
+          <div
+            onClick={() => setStatusFilter("Appuntamento fissato")}
+            style={{ background: "#fff3cd", borderRadius: 12, padding: 16, border: "1px solid #ddd", cursor: "pointer" }}
+          >
+            <div style={{ fontSize: 13, color: "#666" }}>Appuntamenti</div>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.appointments}</div>
+          </div>
 
-        <div style={{ background: "#ffe5d0", borderRadius: 12, padding: 16, border: "1px solid #ddd" }}>
-          <div style={{ fontSize: 13, color: "#666" }}>Trattative</div>
-          <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.negotiation}</div>
-        </div>
+          <div
+            onClick={() => setStatusFilter("In trattativa")}
+            style={{ background: "#ffe5d0", borderRadius: 12, padding: 16, border: "1px solid #ddd", cursor: "pointer" }}
+          >
+            <div style={{ fontSize: 13, color: "#666" }}>Trattative</div>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.negotiation}</div>
+          </div>
 
-        <div style={{ background: "#d1e7dd", borderRadius: 12, padding: 16, border: "1px solid #ddd" }}>
-          <div style={{ fontSize: 13, color: "#666" }}>Acquisiti</div>
-          <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.acquired}</div>
-        </div>
+          <div
+            onClick={() => setStatusFilter("Acquisito")}
+            style={{ background: "#d1e7dd", borderRadius: 12, padding: 16, border: "1px solid #ddd", cursor: "pointer" }}
+          >
+            <div style={{ fontSize: 13, color: "#666" }}>Acquisiti</div>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.acquired}</div>
+          </div>
 
-        <div style={{ background: "#cfe2d9", borderRadius: 12, padding: 16, border: "1px solid #ddd" }}>
-          <div style={{ fontSize: 13, color: "#666" }}>Venduti</div>
-          <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.sold}</div>
-        </div>
+          <div
+            onClick={() => setStatusFilter("Venduto")}
+            style={{ background: "#cfe2d9", borderRadius: 12, padding: 16, border: "1px solid #ddd", cursor: "pointer" }}
+          >
+            <div style={{ fontSize: 13, color: "#666" }}>Venduti</div>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.sold}</div>
+          </div>
 
-        <div style={{ background: "#f8d7da", borderRadius: 12, padding: 16, border: "1px solid #ddd" }}>
-          <div style={{ fontSize: 13, color: "#666" }}>Doppioni</div>
-          <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.duplicates}</div>
+          <div
+            onClick={() => setDuplicateFilter("Doppioni")}
+            style={{ background: "#f8d7da", borderRadius: 12, padding: 16, border: "1px solid #ddd", cursor: "pointer" }}
+          >
+            <div style={{ fontSize: 13, color: "#666" }}>Doppioni</div>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{dashboardStats.duplicates}</div>
+          </div>
         </div>
-      </div>
 
         <div
           style={{
@@ -319,31 +372,24 @@ export default function AdminPage() {
             marginBottom: 20,
           }}
         >
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={{ padding: 10, borderRadius: 8 }}
+          <button
+            onClick={() => {
+              setStatusFilter("Tutte");
+              setDuplicateFilter("Tutti");
+              setSearchTerm("");
+            }}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: "none",
+              background: "#B91c1c",
+              color: "white",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
           >
-            <option>Tutte</option>
-            <option>Nuova</option>
-            <option>Da contattare</option>
-            <option>Contattata</option>
-            <option>Non interessato</option>
-            <option>Appuntamento fissato</option>
-            <option>In trattativa</option>
-            <option>Acquisito</option>
-            <option>Venduto</option>
-          </select>
-
-          <select
-            value={duplicateFilter}
-            onChange={(e) => setDuplicateFilter(e.target.value)}
-            style={{ padding: 10, borderRadius: 8 }}
-          >
-            <option>Tutti</option>
-            <option>Doppioni</option>
-            <option>Unici</option>
-          </select>
+            Reset filtri
+          </button>
         </div>
 
         {filteredLeads.length === 0 && <p>Nessuna segnalazione.</p>}
@@ -382,10 +428,11 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div>{lead.phone}</div>
-            <div>{lead.city}</div>
-            <div style={{ margin: "8px 0" }}>{lead.note}</div>
-
+            <div style={{ marginTop: 6 }}><strong>Telefono:</strong> {lead.phone}</div>
+            <div style={{ marginTop: 4 }}><strong>Città:</strong> {lead.city}</div>
+            <div style={{ marginTop: 8, padding: 10, background: "#f8f9fa", borderRadius: 8 }}>
+              <strong>Note:</strong> {lead.note || "—"}
+            </div>
             <div style={{ marginTop: 8, fontSize: 14, color: "#444" }}>
               <strong>Segnalatore:</strong> {lead.reporter_name || "—"}
             </div>
