@@ -2,10 +2,19 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+type FormState = {
+  reporterName: string;
+  reporterPhone: string;
+  owner: string;
+  phone: string;
+  city: string;
+  note: string;
+};
+
 export default function Home() {
-  const supabase = createClient ();
-  
-  const [form, setForm] = useState({
+  const supabase = createClient();
+
+  const [form, setForm] = useState<FormState>({
     reporterName: "",
     reporterPhone: "",
     owner: "",
@@ -14,151 +23,192 @@ export default function Home() {
     note: "",
   });
 
-  const [images, setImages] = useState<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
 
   function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setImages((prev) => [...prev, reader.result as string]);
-    };
-    reader.readAsDataURL(file);
+    setImageFiles((prev) => [...prev, file]);
+    setPreviewUrls((prev) => [...prev, URL.createObjectURL(file)]);
   }
 
-async function saveLead() {
-  if (!form.owner || !form.phone || !form.city) {
-    alert("Compila nome, telefono e città.");
-    return;
-  }
+  async function uploadImages(reporterPhone: string) {
+    const uploadedUrls: string[] = [];
 
-  const reporterName = form.reporterName.trim();
-  const reporterPhone = form.reporterPhone.replace(/\s/g, "").trim();
+    for (const file of imageFiles) {
+      const safeName = file.name.replace(/\s+/g, "-");
+      const filePath = `${reporterPhone}/${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}-${safeName}`;
 
-  if (!reporterName || !reporterPhone) {
-    alert("Compila nome e telefono del segnalatore.");
-    return;
-  }
+      const { error: uploadError } = await supabase.storage
+        .from("lead-images")
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
 
-  const { data: existingLeads, error: fetchError } = await supabase
-    .from("leads")
-    .select("owner, phone, city");
+      if (uploadError) {
+        throw uploadError;
+      }
 
-  if (fetchError) {
-    alert("Errore nel controllo doppioni.");
-    console.error(fetchError);
-    return;
-  }
+      const { data } = supabase.storage
+        .from("lead-images")
+        .getPublicUrl(filePath);
 
-  const duplicate = (existingLeads || []).some(
-    (l: any) =>
-      l.phone === form.phone ||
-      (
-        String(l.owner || "").toLowerCase() === form.owner.toLowerCase() &&
-        String(l.city || "").toLowerCase() === form.city.toLowerCase()
-      )
-  );
-
-  let reporterId: number | null = null;
-
-  const { data: reporterRows, error: reporterFindError } = await supabase
-  .from("reporters")
-  .select("*")
-  .eq("phone", reporterPhone)
-  .eq("is_active", true)
-  .limit(1);
-
-if (reporterFindError) {
-  alert("Errore nel recupero del segnalatore.");
-  console.error(reporterFindError);
-  return;
-}
-
-const reporterFound = reporterRows && reporterRows.length > 0 ? reporterRows[0] : null;
-
-  if (reporterFindError) {
-    alert("Errore nel recupero del segnalatore.");
-    console.error(reporterFindError);
-    return;
-  }
-
-  if (reporterFound) {
-    reporterId = reporterFound.id;
-
-    const { error: reporterUpdateError } = await supabase
-      .from("reporters")
-      .update({
-        total_leads: reporterFound.total_leads + 1,
-        duplicates: reporterFound.duplicates + (duplicate ? 1 : 0),
-        score: reporterFound.score + (duplicate ? -2 : 2),
-      })
-      .eq("id", reporterId);
-
-    if (reporterUpdateError) {
-      alert("Errore aggiornando il segnalatore.");
-      console.error(reporterUpdateError);
-      return;
+      uploadedUrls.push(data.publicUrl);
     }
-  } else {
-    const { data: newReporter, error: reporterInsertError } = await supabase
-      .from("reporters")
-      .insert([
-        {
-          name: reporterName,
-          phone: reporterPhone,
-          total_leads: 1,
-          duplicates: duplicate ? 1 : 0,
-          score: duplicate ? -2 : 2,
-        },
-      ])
-      .select()
-      .single();
 
-    if (reporterInsertError) {
-      alert("Errore creando il segnalatore.");
-      console.error(reporterInsertError);
+    return uploadedUrls;
+  }
+
+  async function saveLead() {
+    if (!form.owner || !form.phone || !form.city) {
+      alert("Compila nome, telefono e città.");
       return;
     }
 
-    reporterId = newReporter.id;
+    const reporterName = form.reporterName.trim();
+    const reporterPhone = form.reporterPhone.replace(/\s/g, "").trim();
+
+    if (!reporterName || !reporterPhone) {
+      alert("Compila nome e telefono del segnalatore.");
+      return;
+    }
+
+    if (reporterPhone.length < 5 || reporterPhone === "000") {
+      alert("Inserisci un telefono segnalatore valido.");
+      return;
+    }
+
+    const { data: existingLeads, error: fetchError } = await supabase
+      .from("leads")
+      .select("owner, phone, city");
+
+    if (fetchError) {
+      alert("Errore nel controllo doppioni.");
+      console.error(fetchError);
+      return;
+    }
+
+    const duplicate = (existingLeads || []).some(
+      (l: any) =>
+        l.phone === form.phone ||
+        (
+          String(l.owner || "").toLowerCase() === form.owner.toLowerCase() &&
+          String(l.city || "").toLowerCase() === form.city.toLowerCase()
+        )
+    );
+
+    let reporterId: number | null = null;
+
+    const { data: reporterRows, error: reporterFindError } = await supabase
+      .from("reporters")
+      .select("*")
+      .eq("phone", reporterPhone)
+      .eq("is_active", true)
+      .limit(1);
+
+    if (reporterFindError) {
+      alert("Errore nel recupero del segnalatore.");
+      console.error(reporterFindError);
+      return;
+    }
+
+    const reporterFound =
+      reporterRows && reporterRows.length > 0 ? reporterRows[0] : null;
+
+    if (reporterFound) {
+      reporterId = reporterFound.id;
+
+      const { error: reporterUpdateError } = await supabase
+        .from("reporters")
+        .update({
+          total_leads: reporterFound.total_leads + 1,
+          duplicates: reporterFound.duplicates + (duplicate ? 1 : 0),
+          score: reporterFound.score + (duplicate ? -2 : 2),
+        })
+        .eq("id", reporterId);
+
+      if (reporterUpdateError) {
+        alert("Errore aggiornando il segnalatore.");
+        console.error(reporterUpdateError);
+        return;
+      }
+    } else {
+      const { data: newReporter, error: reporterInsertError } = await supabase
+        .from("reporters")
+        .insert([
+          {
+            name: reporterName,
+            phone: reporterPhone,
+            total_leads: 1,
+            duplicates: duplicate ? 1 : 0,
+            score: duplicate ? -2 : 2,
+          },
+        ])
+        .select()
+        .single();
+
+      if (reporterInsertError) {
+        alert("Errore creando il segnalatore.");
+        console.error(reporterInsertError);
+        return;
+      }
+
+      reporterId = newReporter.id;
+    }
+
+    let uploadedImageUrls: string[] = [];
+
+    try {
+      uploadedImageUrls = await uploadImages(reporterPhone);
+    } catch (uploadError) {
+      alert("Errore nel caricamento immagini.");
+      console.error(uploadError);
+      return;
+    }
+
+    const { error } = await supabase.from("leads").insert([
+      {
+        reporter_id: reporterId,
+        reporter_name: reporterName,
+        reporter_phone: reporterPhone,
+        owner: form.owner,
+        phone: form.phone,
+        city: form.city,
+        note: form.note,
+        status: "Nuova",
+        duplicate,
+        images: uploadedImageUrls,
+      },
+    ]);
+
+    if (error) {
+      alert("Errore nel salvataggio.");
+      console.error(error);
+      return;
+    }
+
+    previewUrls.forEach((url) => URL.revokeObjectURL(url));
+
+    setForm({
+      reporterName: "",
+      reporterPhone: "",
+      owner: "",
+      phone: "",
+      city: "",
+      note: "",
+    });
+    setImageFiles([]);
+    setPreviewUrls([]);
+    setShowForm(false);
+
+    alert("Segnalazione inviata.");
   }
-
-  const { error } = await supabase.from("leads").insert([
-    {
-      reporter_id: reporterId,
-      reporter_name: reporterName,
-      reporter_phone: reporterPhone,
-      owner: form.owner,
-      phone: form.phone,
-      city: form.city,
-      note: form.note,
-      status: "Nuova",
-      duplicate,
-      images,
-    },
-  ]);
-
-  if (error) {
-    alert("Errore nel salvataggio.");
-    console.error(error);
-    return;
-  }
-
-  setForm({
-    reporterName: "",
-    reporterPhone: "",
-    owner: "",
-    phone: "",
-    city: "",
-    note: "",
-  });
-  setImages([]);
-  setShowForm(false);
-
-  alert("Segnalazione inviata.");
-}
 
   return (
     <main
@@ -326,7 +376,7 @@ const reporterFound = reporterRows && reporterRows.length > 0 ? reporterRows[0] 
               />
             </div>
 
-            {!!images.length && (
+            {!!previewUrls.length && (
               <div
                 style={{
                   display: "flex",
@@ -335,7 +385,7 @@ const reporterFound = reporterRows && reporterRows.length > 0 ? reporterRows[0] 
                   marginBottom: 10,
                 }}
               >
-                {images.map((img, i) => (
+                {previewUrls.map((img, i) => (
                   <img
                     key={i}
                     src={img}
