@@ -26,6 +26,7 @@ export default function Home() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -66,8 +67,12 @@ export default function Home() {
   }
 
   async function saveLead() {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     if (!form.owner || !form.phone || !form.city) {
       alert("Compila nome, telefono e città.");
+      setIsSubmitting(false);
       return;
     }
 
@@ -76,11 +81,13 @@ export default function Home() {
 
     if (!reporterName || !reporterPhone) {
       alert("Compila nome e telefono del segnalatore.");
+      setIsSubmitting(false);
       return;
     }
 
     if (reporterPhone.length < 5 || reporterPhone === "000") {
       alert("Inserisci un telefono segnalatore valido.");
+      setIsSubmitting(false);
       return;
     }
 
@@ -91,6 +98,7 @@ export default function Home() {
     if (fetchError) {
       alert("Errore nel controllo doppioni.");
       console.error(fetchError);
+      setIsSubmitting(false);
       return;
     }
 
@@ -115,6 +123,7 @@ export default function Home() {
     if (reporterFindError) {
       alert("Errore nel recupero del segnalatore.");
       console.error(reporterFindError);
+      setIsSubmitting(false);
       return;
     }
 
@@ -136,6 +145,7 @@ export default function Home() {
       if (reporterUpdateError) {
         alert("Errore aggiornando il segnalatore.");
         console.error(reporterUpdateError);
+        setIsSubmitting(false);
         return;
       }
     } else {
@@ -156,6 +166,7 @@ export default function Home() {
       if (reporterInsertError) {
         alert("Errore creando il segnalatore.");
         console.error(reporterInsertError);
+        setIsSubmitting(false);
         return;
       }
 
@@ -169,6 +180,7 @@ export default function Home() {
     } catch (uploadError) {
       alert("Errore nel caricamento immagini.");
       console.error(uploadError);
+      setIsSubmitting(false);
       return;
     }
 
@@ -190,19 +202,21 @@ export default function Home() {
     if (error) {
       alert("Errore nel salvataggio.");
       console.error(error);
+      setIsSubmitting(false);
       return;
     }
 
-    const { data: notifyData, error: notifyError } = await supabase.functions.invoke("notify-lead", {
-      body: {
-        reporterName,
-        reporterPhone,
-        owner: form.owner,
-        phone: form.phone,
-        city: form.city,
-        note: form.note,
-      },
-    });
+    const { data: notifyData, error: notifyError } =
+      await supabase.functions.invoke("notify-lead", {
+        body: {
+          reporterName,
+          reporterPhone,
+          owner: form.owner,
+          phone: form.phone,
+          city: form.city,
+          note: form.note,
+        },
+      });
 
     console.log("NOTIFY DATA:", notifyData);
     console.log("NOTIFY ERROR:", notifyError);
@@ -224,6 +238,7 @@ export default function Home() {
     setImageFiles([]);
     setPreviewUrls([]);
     setShowForm(false);
+    setIsSubmitting(false);
 
     alert("Grazie per la Segnalazione.");
   }
@@ -232,7 +247,7 @@ export default function Home() {
     <main
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(180deg, #ff8c1a, #ffa94d)",
+        background: "linear-gradient(180deg, #f5f5dc, #f3f4f6)",
         display: "flex",
         justifyContent: "center",
         padding: 20,
@@ -241,8 +256,8 @@ export default function Home() {
     >
       <div style={{ width: "100%", maxWidth: 420 }}>
         <div style={{ marginBottom: 20 }}>
-          <h1 style={{ color: "white", margin: 0 }}>Segnalapp</h1>
-          <p style={{ color: "white", opacity: 0.8, marginTop: 4 }}>
+          <h1 style={{ color: "#1f2937", margin: 0 }}>Segnalapp</h1>
+          <p style={{ color: "#6b7280", marginTop: 4 }}>
             Segnala immobili rapidamente
           </p>
         </div>
@@ -385,24 +400,62 @@ export default function Home() {
               }}
             />
 
-           <div style={{ marginBottom: 12 }}>
-            <div style={{ marginBottom: 6, fontWeight: 700 }}>Scatta foto</div>
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleImage}
-              />
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ marginBottom: 8, fontWeight: 700 }}>Aggiungi immagini</div>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <label
+                  htmlFor="camera-input"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    background: "#198754",
+                    color: "white",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  📷 Scatta foto
+                </label>
+
+                <input
+                  id="camera-input"
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleImage}
+                  style={{ display: "none" }}
+                />
+
+                <label
+                  htmlFor="gallery-input"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    background: "#f59e0b",
+                    color: "white",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  🖼️ Galleria
+                </label>
+
+                <input
+                  id="gallery-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImage}
+                  style={{ display: "none" }}
+                />
+              </div>
             </div>
-            
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ marginBottom: 6, fontWeight: 700 }}>Carica da galleria</div>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImage}
-            />
-          </div>
 
             {!!previewUrls.length && (
               <div
@@ -427,18 +480,20 @@ export default function Home() {
 
             <button
               onClick={saveLead}
+              disabled={isSubmitting}
               style={{
                 width: "100%",
                 padding: 14,
                 borderRadius: 14,
                 border: "none",
-                background: "#1f4d8f",
+                background: isSubmitting ? "#7a9cc7" : "#1f4d8f",
                 color: "white",
                 fontWeight: 700,
-                cursor: "pointer",
+                cursor: isSubmitting ? "not-allowed" : "pointer",
+                opacity: isSubmitting ? 0.85 : 1,
               }}
             >
-              Invia segnalazione
+              {isSubmitting ? "Invio in corso..." : "Invia segnalazione"}
             </button>
           </div>
         )}
