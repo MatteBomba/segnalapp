@@ -111,6 +111,13 @@ export default function Home() {
         )
     );
 
+    let initialScore = duplicate ? -2 : 2;
+
+    if (form.note.trim().length > 0) initialScore += 1;
+    if (form.note.trim().length >= 20) initialScore += 1;
+    if (imageFiles.length >= 1) initialScore += 2;
+    if (imageFiles.length >= 3) initialScore += 1;
+
     let reporterId: number | null = null;
 
     const { data: reporterRows, error: reporterFindError } = await supabase
@@ -134,13 +141,13 @@ export default function Home() {
       reporterId = reporterFound.id;
 
       const { error: reporterUpdateError } = await supabase
-        .from("reporters")
-        .update({
-          total_leads: reporterFound.total_leads + 1,
-          duplicates: reporterFound.duplicates + (duplicate ? 1 : 0),
-          score: reporterFound.score + (duplicate ? -2 : 2),
-        })
-        .eq("id", reporterId);
+      .from("reporters")
+      .update({
+        total_leads: reporterFound.total_leads + 1,
+        duplicates: reporterFound.duplicates + (duplicate ? 1 : 0),
+        score: reporterFound.score + initialScore,
+      })
+      .eq("id", reporterId);
 
       if (reporterUpdateError) {
         alert("Errore aggiornando il segnalatore.");
@@ -157,7 +164,7 @@ export default function Home() {
             phone: reporterPhone,
             total_leads: 1,
             duplicates: duplicate ? 1 : 0,
-            score: duplicate ? -2 : 2,
+            score: initialScore,
           },
         ])
         .select()
