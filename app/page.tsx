@@ -193,6 +193,24 @@ export default function Home() {
       return;
     }
 
+    const { data: notifyData, error: notifyError } = await supabase.functions.invoke("notify-lead", {
+      body: {
+        reporterName,
+        reporterPhone,
+        owner: form.owner,
+        phone: form.phone,
+        city: form.city,
+        note: form.note,
+      },
+    });
+
+    console.log("NOTIFY DATA:", notifyData);
+    console.log("NOTIFY ERROR:", notifyError);
+
+    if (notifyError) {
+      console.error("Errore invio notifica:", notifyError);
+    }
+
     previewUrls.forEach((url) => URL.revokeObjectURL(url));
 
     setForm({
