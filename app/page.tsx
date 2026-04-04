@@ -27,13 +27,27 @@ export default function Home() {
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
 
   function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-    setImageFiles((prev) => [...prev, file]);
-    setPreviewUrls((prev) => [...prev, URL.createObjectURL(file)]);
+    setImageFiles((prev) => [...prev, ...files]);
+    setPreviewUrls((prev) => [
+      ...prev,
+      ...files.map((file) => URL.createObjectURL(file)),
+    ]);
+
+    e.target.value = "";
+  }
+
+  function removeImage(indexToRemove: number) {
+    URL.revokeObjectURL(previewUrls[indexToRemove]);
+
+    setImageFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
+    setPreviewUrls((prev) => prev.filter((_, index) => index !== indexToRemove));
   }
 
   async function uploadImages(reporterPhone: string) {
@@ -248,7 +262,7 @@ export default function Home() {
 
     previewUrls.forEach((url) => URL.revokeObjectURL(url));
 
-    setForm({
+   setForm({
       reporterName: "",
       reporterPhone: "",
       owner: "",
@@ -261,7 +275,11 @@ export default function Home() {
     setShowForm(false);
     setIsSubmitting(false);
 
-    alert("Grazie per la Segnalazione.");
+    setSuccessMessage("✅ Grazie! La segnalazione è stata inviata correttamente.");
+
+    setTimeout(() => {
+      setSuccessMessage("");
+    }, 4000);
   }
 
   return (
@@ -282,6 +300,23 @@ export default function Home() {
             Segnala immobili rapidamente
           </p>
         </div>
+
+        {successMessage && (
+          <div
+            style={{
+              background: "#dcfce7",
+              color: "#166534",
+              border: "1px solid #86efac",
+              padding: 12,
+              borderRadius: 12,
+              marginBottom: 16,
+              fontWeight: 700,
+              boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
+            }}
+          >
+            {successMessage}
+          </div>
+        )}
 
         {!showForm && (
           <div
@@ -447,6 +482,7 @@ export default function Home() {
                   type="file"
                   accept="image/*"
                   capture="environment"
+                  multiple
                   onChange={handleImage}
                   style={{ display: "none" }}
                 />
@@ -472,6 +508,7 @@ export default function Home() {
                   id="gallery-input"
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={handleImage}
                   style={{ display: "none" }}
                 />
@@ -488,13 +525,52 @@ export default function Home() {
                 }}
               >
                 {previewUrls.map((img, i) => (
-                  <img
+                  <div
                     key={i}
-                    src={img}
-                    alt={`preview-${i}`}
-                    width={80}
-                    style={{ borderRadius: 10 }}
-                  />
+                    style={{
+                      position: "relative",
+                      width: 80,
+                      height: 80,
+                    }}
+                  >
+                    <img
+                      src={img}
+                      alt={`preview-${i}`}
+                      width={80}
+                      height={80}
+                      style={{
+                        borderRadius: 10,
+                        objectFit: "cover",
+                        width: "100%",
+                        height: "100%",
+                        display: "block",
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => removeImage(i)}
+                      style={{
+                        position: "absolute",
+                        top: -8,
+                        right: -8,
+                        width: 24,
+                        height: 24,
+                        borderRadius: "50%",
+                        border: "none",
+                        background: "#dc2626",
+                        color: "white",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        lineHeight: 1,
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
