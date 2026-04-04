@@ -54,6 +54,7 @@ function getPrecision(totalLeads: number, duplicates: number) {
 export default function SegnalatoriPage() {
   const supabase = createClient();
   const [reporters, setReporters] = useState<Reporter[]>([]);
+  const [openReporterId, setOpenReporterId] = useState<number | null>(null);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -212,75 +213,97 @@ export default function SegnalatoriPage() {
               <strong>Precisione:</strong> {precision}%
             </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
-                gap: 10,
-                marginTop: 14,
-              }}
-            >
-              <div style={{ background: "#f9fafb", padding: 12, borderRadius: 10 }}>
-                <strong>Segnalazioni</strong>
-                <div>{reporter.total_leads}</div>
-              </div>
-
-              <div style={{ background: "#fef2f2", padding: 12, borderRadius: 10 }}>
-                <strong>Doppioni</strong>
-                <div>{reporter.duplicates}</div>
-              </div>
-
-              <div style={{ background: "#eff6ff", padding: 12, borderRadius: 10 }}>
-                <strong>Con note</strong>
-                <div>{reporter.notes_count}</div>
-              </div>
-
-              <div style={{ background: "#eef2ff", padding: 12, borderRadius: 10 }}>
-                <strong>Note complete</strong>
-                <div>{reporter.good_notes_count}</div>
-              </div>
-
-              <div style={{ background: "#ecfdf5", padding: 12, borderRadius: 10 }}>
-                <strong>Con foto</strong>
-                <div>{reporter.photos_count}</div>
-              </div>
-
-              <div style={{ background: "#f0fdf4", padding: 12, borderRadius: 10 }}>
-                <strong>3+ foto</strong>
-                <div>{reporter.rich_photos_count}</div>
-              </div>
-
-              <div style={{ background: "#fffbeb", padding: 12, borderRadius: 10 }}>
-                <strong>Appuntamenti</strong>
-                <div>{reporter.appointments}</div>
-              </div>
-
-              <div style={{ background: "#fef3c7", padding: 12, borderRadius: 10 }}>
-                <strong>Acquisiti</strong>
-                <div>{reporter.acquired}</div>
-              </div>
-
-              <div style={{ background: "#dcfce7", padding: 12, borderRadius: 10 }}>
-                <strong>Venduti</strong>
-                <div>{reporter.sold}</div>
-              </div>
-            </div>
-
             <button
-              onClick={() => deleteReporter(reporter.id)}
+              onClick={() =>
+                setOpenReporterId(openReporterId === reporter.id ? null : reporter.id)
+              }
               style={{
-                marginTop: 14,
+                marginTop: 12,
                 padding: "10px 14px",
                 borderRadius: 8,
                 border: "none",
-                background: "#6b7280",
+                background: "#1f4d8f",
                 color: "white",
                 fontWeight: 700,
                 cursor: "pointer",
               }}
             >
-              Archivia segnalatore
+              {openReporterId === reporter.id ? "Nascondi dettagli" : "Mostra dettagli"}
             </button>
+
+            {openReporterId === reporter.id && (
+              <>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+                    gap: 10,
+                    marginTop: 14,
+                  }}
+                >
+                  <div style={{ background: "#f9fafb", padding: 12, borderRadius: 10 }}>
+                    <strong>Segnalazioni</strong>
+                    <div>{reporter.total_leads}</div>
+                  </div>
+
+                  <div style={{ background: "#fef2f2", padding: 12, borderRadius: 10 }}>
+                    <strong>Doppioni</strong>
+                    <div>{reporter.duplicates}</div>
+                  </div>
+
+                  <div style={{ background: "#eff6ff", padding: 12, borderRadius: 10 }}>
+                    <strong>Con note</strong>
+                    <div>{reporter.notes_count}</div>
+                  </div>
+
+                  <div style={{ background: "#eef2ff", padding: 12, borderRadius: 10 }}>
+                    <strong>Note complete</strong>
+                    <div>{reporter.good_notes_count}</div>
+                  </div>
+
+                  <div style={{ background: "#ecfdf5", padding: 12, borderRadius: 10 }}>
+                    <strong>Con foto</strong>
+                    <div>{reporter.photos_count}</div>
+                  </div>
+
+                  <div style={{ background: "#f0fdf4", padding: 12, borderRadius: 10 }}>
+                    <strong>3+ foto</strong>
+                    <div>{reporter.rich_photos_count}</div>
+                  </div>
+
+                  <div style={{ background: "#fffbeb", padding: 12, borderRadius: 10 }}>
+                    <strong>Appuntamenti</strong>
+                    <div>{reporter.appointments}</div>
+                  </div>
+
+                  <div style={{ background: "#fef3c7", padding: 12, borderRadius: 10 }}>
+                    <strong>Acquisiti</strong>
+                    <div>{reporter.acquired}</div>
+                  </div>
+
+                  <div style={{ background: "#dcfce7", padding: 12, borderRadius: 10 }}>
+                    <strong>Venduti</strong>
+                    <div>{reporter.sold}</div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => deleteReporter(reporter.id)}
+                  style={{
+                    marginTop: 14,
+                    padding: "10px 14px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: "#6b7280",
+                    color: "white",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Archivia segnalatore
+                </button>
+              </>
+            )}
           </div>
         );
       })}
