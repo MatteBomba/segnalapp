@@ -235,6 +235,7 @@ export default function Home() {
           phone: form.phone,
           city: form.city,
           note: form.note,
+          images: uploadedImageUrls,
         },
       });
 
