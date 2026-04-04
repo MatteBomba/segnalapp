@@ -78,6 +78,7 @@ export default function Home() {
 
     const reporterName = form.reporterName.trim();
     const reporterPhone = form.reporterPhone.replace(/\s/g, "").trim();
+    const trimmedNote = form.note.trim();
 
     if (!reporterName || !reporterPhone) {
       alert("Compila nome e telefono del segnalatore.");
@@ -111,12 +112,16 @@ export default function Home() {
         )
     );
 
-    let initialScore = duplicate ? -2 : 2;
+    const hasNotes = trimmedNote.length > 0;
+    const hasGoodNotes = trimmedNote.length >= 20;
+    const hasPhotos = imageFiles.length >= 1;
+    const hasRichPhotos = imageFiles.length >= 3;
 
-    if (form.note.trim().length > 0) initialScore += 1;
-    if (form.note.trim().length >= 20) initialScore += 1;
-    if (imageFiles.length >= 1) initialScore += 2;
-    if (imageFiles.length >= 3) initialScore += 1;
+    let initialScore = duplicate ? -2 : 2;
+    if (hasNotes) initialScore += 1;
+    if (hasGoodNotes) initialScore += 1;
+    if (hasPhotos) initialScore += 2;
+    if (hasRichPhotos) initialScore += 1;
 
     let reporterId: number | null = null;
 
@@ -141,13 +146,17 @@ export default function Home() {
       reporterId = reporterFound.id;
 
       const { error: reporterUpdateError } = await supabase
-      .from("reporters")
-      .update({
-        total_leads: reporterFound.total_leads + 1,
-        duplicates: reporterFound.duplicates + (duplicate ? 1 : 0),
-        score: reporterFound.score + initialScore,
-      })
-      .eq("id", reporterId);
+        .from("reporters")
+        .update({
+          total_leads: reporterFound.total_leads + 1,
+          duplicates: reporterFound.duplicates + (duplicate ? 1 : 0),
+          notes_count: reporterFound.notes_count + (hasNotes ? 1 : 0),
+          good_notes_count: reporterFound.good_notes_count + (hasGoodNotes ? 1 : 0),
+          photos_count: reporterFound.photos_count + (hasPhotos ? 1 : 0),
+          rich_photos_count: reporterFound.rich_photos_count + (hasRichPhotos ? 1 : 0),
+          score: reporterFound.score + initialScore,
+        })
+        .eq("id", reporterId);
 
       if (reporterUpdateError) {
         alert("Errore aggiornando il segnalatore.");
@@ -164,6 +173,10 @@ export default function Home() {
             phone: reporterPhone,
             total_leads: 1,
             duplicates: duplicate ? 1 : 0,
+            notes_count: hasNotes ? 1 : 0,
+            good_notes_count: hasGoodNotes ? 1 : 0,
+            photos_count: hasPhotos ? 1 : 0,
+            rich_photos_count: hasRichPhotos ? 1 : 0,
             score: initialScore,
           },
         ])
@@ -275,7 +288,7 @@ export default function Home() {
               background: "white",
               borderRadius: 20,
               padding: 20,
-              boxShadow: "0 15px 30px rgba(0,0,0,0.2)",
+              boxShadow: "0 15px 30px rgba(0,0,0,0.12)",
             }}
           >
             <button
@@ -303,7 +316,7 @@ export default function Home() {
               background: "white",
               borderRadius: 20,
               padding: 20,
-              boxShadow: "0 15px 30px rgba(0,0,0,0.2)",
+              boxShadow: "0 15px 30px rgba(0,0,0,0.12)",
             }}
           >
             <div
@@ -445,7 +458,7 @@ export default function Home() {
                     gap: 8,
                     padding: "12px 14px",
                     borderRadius: 12,
-                    background: "#f59e0b",
+                    background: "#f97316",
                     color: "white",
                     fontWeight: 700,
                     cursor: "pointer",

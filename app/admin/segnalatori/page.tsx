@@ -15,8 +15,41 @@ type Reporter = {
   appointments: number;
   acquired: number;
   sold: number;
+  notes_count: number;
+  good_notes_count: number;
+  photos_count: number;
+  rich_photos_count: number;
   is_active: boolean;
 };
+
+function getQualityStars(score: number, totalLeads: number) {
+  if (!totalLeads) return "☆☆☆☆☆";
+
+  const avg = score / totalLeads;
+
+  if (avg >= 8) return "★★★★★";
+  if (avg >= 6) return "★★★★☆";
+  if (avg >= 4) return "★★★☆☆";
+  if (avg >= 2) return "★★☆☆☆";
+  return "★☆☆☆☆";
+}
+
+function getQualityLabel(score: number, totalLeads: number) {
+  if (!totalLeads) return "Nuovo";
+
+  const avg = score / totalLeads;
+
+  if (avg >= 8) return "Premium";
+  if (avg >= 6) return "Ottimo";
+  if (avg >= 4) return "Buono";
+  if (avg >= 2) return "Base";
+  return "Debole";
+}
+
+function getPrecision(totalLeads: number, duplicates: number) {
+  if (!totalLeads) return 0;
+  return Math.max(0, Math.round(((totalLeads - duplicates) / totalLeads) * 100));
+}
 
 export default function SegnalatoriPage() {
   const supabase = createClient();
@@ -47,7 +80,7 @@ export default function SegnalatoriPage() {
   }, [supabase]);
 
   async function deleteReporter(id: number) {
-    const conferma = window.confirm("Vuoi davvero eliminare questo segnalatore?");
+    const conferma = window.confirm("Vuoi davvero archiviare questo segnalatore?");
     if (!conferma) return;
 
     const { error } = await supabase
@@ -56,7 +89,7 @@ export default function SegnalatoriPage() {
       .eq("id", id);
 
     if (error) {
-      alert("Errore eliminando il segnalatore.");
+      alert("Errore archiviando il segnalatore.");
       console.error(error);
       return;
     }
@@ -69,7 +102,7 @@ export default function SegnalatoriPage() {
       style={{
         padding: 24,
         fontFamily: "Arial, sans-serif",
-        maxWidth: 900,
+        maxWidth: 1000,
         margin: "0 auto",
       }}
     >
@@ -127,47 +160,130 @@ export default function SegnalatoriPage() {
 
       {reporters.length === 0 && <p>Nessun segnalatore registrato.</p>}
 
-      {reporters.map((reporter) => (
-        <div
-          key={reporter.id}
-          style={{
-            background: "white",
-            border: "1px solid #ddd",
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 14,
-          }}
-        >
-          <div><strong>{reporter.name}</strong></div>
-          <div>{reporter.phone || "—"}</div>
+      {reporters.map((reporter) => {
+        const stars = getQualityStars(reporter.score, reporter.total_leads);
+        const label = getQualityLabel(reporter.score, reporter.total_leads);
+        const precision = getPrecision(reporter.total_leads, reporter.duplicates);
 
-          <div style={{ marginTop: 8 }}>Segnalazioni totali: {reporter.total_leads}</div>
-          <div>Doppioni: {reporter.duplicates}</div>
-          <div>Appuntamenti fissati: {reporter.appointments}</div>
-          <div>Acquisiti: {reporter.acquired}</div>
-          <div>Venduti: {reporter.sold}</div>
-
-          <div style={{ marginTop: 10 }}>
-            <strong>Punteggio: {reporter.score}</strong>
-          </div>
-
-          <button
-            onClick={() => deleteReporter(reporter.id)}
+        return (
+          <div
+            key={reporter.id}
             style={{
-              marginTop: 12,
-              padding: "10px 14px",
-              borderRadius: 8,
-              border: "none",
-              background: "#6b7280",
-              color: "white",
-              fontWeight: 700,
-              cursor: "pointer",
+              background: "white",
+              border: "1px solid #ddd",
+              borderRadius: 16,
+              padding: 18,
+              marginBottom: 16,
+              boxShadow: "0 6px 18px rgba(0,0,0,0.05)",
             }}
           >
-            Archivia segnalatore
-          </button>
-        </div>
-      ))}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{reporter.name}</div>
+                <div style={{ color: "#555", marginTop: 4 }}>{reporter.phone || "—"}</div>
+              </div>
+
+              <div
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  background: "#f3f4f6",
+                  fontWeight: 700,
+                }}
+              >
+                {label}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 12, fontSize: 22 }}>{stars}</div>
+
+            <div style={{ marginTop: 8 }}>
+              <strong>Punteggio totale:</strong> {reporter.score}
+            </div>
+            <div>
+              <strong>Precisione:</strong> {precision}%
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+                gap: 10,
+                marginTop: 14,
+              }}
+            >
+              <div style={{ background: "#f9fafb", padding: 12, borderRadius: 10 }}>
+                <strong>Segnalazioni</strong>
+                <div>{reporter.total_leads}</div>
+              </div>
+
+              <div style={{ background: "#fef2f2", padding: 12, borderRadius: 10 }}>
+                <strong>Doppioni</strong>
+                <div>{reporter.duplicates}</div>
+              </div>
+
+              <div style={{ background: "#eff6ff", padding: 12, borderRadius: 10 }}>
+                <strong>Con note</strong>
+                <div>{reporter.notes_count}</div>
+              </div>
+
+              <div style={{ background: "#eef2ff", padding: 12, borderRadius: 10 }}>
+                <strong>Note complete</strong>
+                <div>{reporter.good_notes_count}</div>
+              </div>
+
+              <div style={{ background: "#ecfdf5", padding: 12, borderRadius: 10 }}>
+                <strong>Con foto</strong>
+                <div>{reporter.photos_count}</div>
+              </div>
+
+              <div style={{ background: "#f0fdf4", padding: 12, borderRadius: 10 }}>
+                <strong>3+ foto</strong>
+                <div>{reporter.rich_photos_count}</div>
+              </div>
+
+              <div style={{ background: "#fffbeb", padding: 12, borderRadius: 10 }}>
+                <strong>Appuntamenti</strong>
+                <div>{reporter.appointments}</div>
+              </div>
+
+              <div style={{ background: "#fef3c7", padding: 12, borderRadius: 10 }}>
+                <strong>Acquisiti</strong>
+                <div>{reporter.acquired}</div>
+              </div>
+
+              <div style={{ background: "#dcfce7", padding: 12, borderRadius: 10 }}>
+                <strong>Venduti</strong>
+                <div>{reporter.sold}</div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => deleteReporter(reporter.id)}
+              style={{
+                marginTop: 14,
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: "none",
+                background: "#6b7280",
+                color: "white",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Archivia segnalatore
+            </button>
+          </div>
+        );
+      })}
     </main>
   );
 }
