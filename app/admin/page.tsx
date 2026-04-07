@@ -14,6 +14,8 @@ type Lead = {
   phone: string;
   city: string;
   note: string;
+  admin_note?: string;
+  priority?: string;
   status: string;
   images: string[];
   duplicate?: boolean;
@@ -23,22 +25,23 @@ export default function AdminPage() {
   const supabase = createClient();
 
   function extractStoragePath(publicUrl: string) {
-  try {
-    const url = new URL(publicUrl);
-    const marker = "/storage/v1/object/public/lead-images/";
-    const idx = url.pathname.indexOf(marker);
+    try {
+      const url = new URL(publicUrl);
+      const marker = "/storage/v1/object/public/lead-images/";
+      const idx = url.pathname.indexOf(marker);
 
-    if (idx === -1) return null;
+      if (idx === -1) return null;
 
-    return decodeURIComponent(url.pathname.substring(idx + marker.length));
-  } catch {
-    return null;
+      return decodeURIComponent(url.pathname.substring(idx + marker.length));
+    } catch {
+      return null;
+    }
   }
-}
 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [statusFilter, setStatusFilter] = useState("Tutte");
   const [duplicateFilter, setDuplicateFilter] = useState("Tutti");
+  const [priorityFilter, setPriorityFilter] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -65,127 +68,152 @@ export default function AdminPage() {
     loadLeads();
   }, [supabase]);
 
-  async function updateStatus(id: number, newStatus: string) {
-  const lead = leads.find((l) => l.id === id);
-  if (!lead) return;
+  async function updateLead(id: number, updates: Partial<Lead>) {
+    const payload: Record<string, unknown> = {
+      ...updates,
+      ...(updates.status ? { last_status_change_at: new Date().toISOString() } : {}),
+    };
 
-  const oldStatus = lead.status;
+    const { error } = await supabase
+      .from("leads")
+      .update(payload)
+      .eq("id", id);
 
-  const { error } = await supabase
-    .from("leads")
-    .update({ status: newStatus })
-    .eq("id", id);
-
-  if (error) {
-    alert("Errore aggiornando lo stato.");
-    console.error(error);
-    return;
-  }
-
-  setLeads((prev) =>
-    prev.map((l) => (l.id === id ? { ...l, status: newStatus } : l))
-  );
-
-  if (!lead.reporter_id) return;
-
-  const { data: reporter, error: reporterError } = await supabase
-    .from("reporters")
-    .select("*")
-    .eq("id", lead.reporter_id)
-    .single();
-
-  if (reporterError || !reporter) {
-    console.error(reporterError);
-    return;
-  }
-
-  let appointments = reporter.appointments;
-  let acquired = reporter.acquired;
-  let sold = reporter.sold;
-  let score = reporter.score;
-
-  if (oldStatus === "Appuntamento fissato") {
-    appointments -= 1;
-    score -= 5;
-  }
-  if (oldStatus === "Acquisito") {
-    acquired -= 1;
-    score -= 10;
-  }
-  if (oldStatus === "Venduto") {
-    sold -= 1;
-    score -= 20;
-  }
-
-  if (newStatus === "Appuntamento fissato") {
-    appointments += 1;
-    score += 5;
-  }
-  if (newStatus === "Acquisito") {
-    acquired += 1;
-    score += 10;
-  }
-  if (newStatus === "Venduto") {
-    sold += 1;
-    score += 20;
-  }
-
-  const { error: reporterUpdateError } = await supabase
-    .from("reporters")
-    .update({
-      appointments,
-      acquired,
-      sold,
-      score,
-    })
-    .eq("id", lead.reporter_id);
-
-  if (reporterUpdateError) {
-    console.error(reporterUpdateError);
-  }
-}
-
-  async function deleteLead(id: number) {
-  const conferma = window.confirm("Vuoi davvero eliminare questa segnalazione?");
-  if (!conferma) return;
-
-  const leadToDelete = leads.find((lead) => lead.id === id);
-
-  if (!leadToDelete) {
-    alert("Segnalazione non trovata.");
-    return;
-  }
-
-  const imagePaths =
-    leadToDelete.images
-      ?.map((img) => extractStoragePath(img))
-      .filter(Boolean) as string[];
-
-  if (imagePaths.length > 0) {
-    const { error: storageError } = await supabase.storage
-      .from("lead-images")
-      .remove(imagePaths);
-
-    if (storageError) {
-      alert("Errore eliminando le immagini dal bucket.");
-      console.error(storageError);
+    if (error) {
+      console.error(error);
+      alert("Errore aggiornamento lead");
       return;
+    }
+
+    setLeads((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, ...updates } : l))
+    );
+  }
+
+  async function updateStatus(id: number, newStatus: string) {
+    const lead = leads.find((l) => l.id === id);
+    if (!lead) return;
+
+    const oldStatus = lead.status;
+
+    const { error } = await supabase
+      .from("leads")
+      .update({
+        status: newStatus,
+        last_status_change_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) {
+      alert("Errore aggiornando lo stato.");
+      console.error(error);
+      return;
+    }
+
+    setLeads((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, status: newStatus } : l))
+    );
+
+    if (!lead.reporter_id) return;
+
+    const { data: reporter, error: reporterError } = await supabase
+      .from("reporters")
+      .select("*")
+      .eq("id", lead.reporter_id)
+      .single();
+
+    if (reporterError || !reporter) {
+      console.error(reporterError);
+      return;
+    }
+
+    let appointments = reporter.appointments;
+    let acquired = reporter.acquired;
+    let sold = reporter.sold;
+    let score = reporter.score;
+
+    if (oldStatus === "Appuntamento fissato") {
+      appointments -= 1;
+      score -= 5;
+    }
+    if (oldStatus === "Acquisito") {
+      acquired -= 1;
+      score -= 10;
+    }
+    if (oldStatus === "Venduto") {
+      sold -= 1;
+      score -= 20;
+    }
+
+    if (newStatus === "Appuntamento fissato") {
+      appointments += 1;
+      score += 5;
+    }
+    if (newStatus === "Acquisito") {
+      acquired += 1;
+      score += 10;
+    }
+    if (newStatus === "Venduto") {
+      sold += 1;
+      score += 20;
+    }
+
+    const { error: reporterUpdateError } = await supabase
+      .from("reporters")
+      .update({
+        appointments,
+        acquired,
+        sold,
+        score,
+      })
+      .eq("id", lead.reporter_id);
+
+    if (reporterUpdateError) {
+      console.error(reporterUpdateError);
     }
   }
 
-  const { error } = await supabase
-    .from("leads")
-    .delete()
-    .eq("id", id);
+  async function deleteLead(id: number) {
+    const conferma = window.confirm("Vuoi davvero eliminare questa segnalazione?");
+    if (!conferma) return;
 
-  if (error) {
-    alert("Errore eliminando la segnalazione.");
-    console.error(error);
-    return;
+    const leadToDelete = leads.find((lead) => lead.id === id);
+
+    if (!leadToDelete) {
+      alert("Segnalazione non trovata.");
+      return;
+    }
+
+    const imagePaths =
+      leadToDelete.images
+        ?.map((img) => extractStoragePath(img))
+        .filter(Boolean) as string[];
+
+    if (imagePaths.length > 0) {
+      const { error: storageError } = await supabase.storage
+        .from("lead-images")
+        .remove(imagePaths);
+
+      if (storageError) {
+        alert("Errore eliminando le immagini dal bucket.");
+        console.error(storageError);
+        return;
+      }
+    }
+
+    const { error } = await supabase
+      .from("leads")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      alert("Errore eliminando la segnalazione.");
+      console.error(error);
+      return;
+    }
+
+    setLeads((prev) => prev.filter((lead) => lead.id !== id));
   }
-
-  setLeads((prev) => prev.filter((lead) => lead.id !== id));
-}
 
   function getStatusColor(status: string) {
     switch (status) {
@@ -210,60 +238,62 @@ export default function AdminPage() {
     }
   }
 
-  <input
-  type="text"
-  placeholder="Cerca per proprietario, telefono, città o segnalatore"
-  value={searchTerm}
-  onChange={(e) => setSearchTerm(e.target.value)}
-  style={{
-    width: "100%",
-    padding: 12,
-    borderRadius: 10,
-    border: "1px solid #ccc",
-    marginBottom: 16,
-  }}
-/>
+  function getPriorityColor(priority?: string) {
+    switch (priority) {
+      case "Alta":
+        return "#fecaca";
+      case "Media":
+        return "#fde68a";
+      case "Bassa":
+        return "#d1fae5";
+      default:
+        return "#e5e7eb";
+    }
+  }
 
   const filteredLeads = useMemo(() => {
-  return leads.filter((lead) => {
-    const okStatus =
-      statusFilter === "Tutte" ? true : lead.status === statusFilter;
+    return leads.filter((lead) => {
+      const okStatus =
+        statusFilter === "Tutte" ? true : lead.status === statusFilter;
 
-    const okDuplicate =
-      duplicateFilter === "Tutti"
-        ? true
-        : duplicateFilter === "Doppioni"
-        ? !!lead.duplicate
-        : !lead.duplicate;
+      const okDuplicate =
+        duplicateFilter === "Tutti"
+          ? true
+          : duplicateFilter === "Doppioni"
+          ? !!lead.duplicate
+          : !lead.duplicate;
 
-    const q = searchTerm.trim().toLowerCase();
+      const okPriority =
+        priorityFilter === "" ? true : (lead.priority || "Media") === priorityFilter;
 
-    const okSearch =
-      q === ""
-        ? true
-        : String(lead.owner || "").toLowerCase().includes(q) ||
-          String(lead.phone || "").toLowerCase().includes(q) ||
-          String(lead.city || "").toLowerCase().includes(q) ||
-          String(lead.reporter_name || "").toLowerCase().includes(q) ||
-          String(lead.reporter_phone || "").toLowerCase().includes(q);
+      const q = searchTerm.trim().toLowerCase();
 
-    return okStatus && okDuplicate && okSearch;
-  });
-}, [leads, statusFilter, duplicateFilter, searchTerm]);
+      const okSearch =
+        q === ""
+          ? true
+          : String(lead.owner || "").toLowerCase().includes(q) ||
+            String(lead.phone || "").toLowerCase().includes(q) ||
+            String(lead.city || "").toLowerCase().includes(q) ||
+            String(lead.reporter_name || "").toLowerCase().includes(q) ||
+            String(lead.reporter_phone || "").toLowerCase().includes(q);
+
+      return okStatus && okDuplicate && okPriority && okSearch;
+    });
+  }, [leads, statusFilter, duplicateFilter, priorityFilter, searchTerm]);
 
   const dashboardStats = useMemo(() => {
-  return {
-    total: leads.length,
-    new: leads.filter((lead) => lead.status === "Nuova").length,
-    toContact: leads.filter((lead) => lead.status === "Da contattare").length,
-    contacted: leads.filter((lead) => lead.status === "Contattata").length,
-    appointments: leads.filter((lead) => lead.status === "Appuntamento fissato").length,
-    negotiation: leads.filter((lead) => lead.status === "In trattativa").length,
-    acquired: leads.filter((lead) => lead.status === "Acquisito").length,
-    sold: leads.filter((lead) => lead.status === "Venduto").length,
-    duplicates: leads.filter((lead) => !!lead.duplicate).length,
-  };
-}, [leads]);
+    return {
+      total: leads.length,
+      new: leads.filter((lead) => lead.status === "Nuova").length,
+      toContact: leads.filter((lead) => lead.status === "Da contattare").length,
+      contacted: leads.filter((lead) => lead.status === "Contattata").length,
+      appointments: leads.filter((lead) => lead.status === "Appuntamento fissato").length,
+      negotiation: leads.filter((lead) => lead.status === "In trattativa").length,
+      acquired: leads.filter((lead) => lead.status === "Acquisito").length,
+      sold: leads.filter((lead) => lead.status === "Venduto").length,
+      duplicates: leads.filter((lead) => !!lead.duplicate).length,
+    };
+  }, [leads]);
 
   return (
     <>
@@ -402,6 +432,20 @@ export default function AdminPage() {
           </div>
         </div>
 
+        <input
+          type="text"
+          placeholder="Cerca per proprietario, telefono, città o segnalatore"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{
+            width: "100%",
+            padding: 12,
+            borderRadius: 10,
+            border: "1px solid #ccc",
+            marginBottom: 16,
+          }}
+        />
+
         <div
           style={{
             display: "flex",
@@ -410,17 +454,33 @@ export default function AdminPage() {
             marginBottom: 20,
           }}
         >
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+            style={{
+              padding: 10,
+              borderRadius: 8,
+              border: "1px solid #ddd",
+            }}
+          >
+            <option value="">Tutte le priorità</option>
+            <option value="Alta">Alta</option>
+            <option value="Media">Media</option>
+            <option value="Bassa">Bassa</option>
+          </select>
+
           <button
             onClick={() => {
               setStatusFilter("Tutte");
               setDuplicateFilter("Tutti");
+              setPriorityFilter("");
               setSearchTerm("");
             }}
             style={{
               padding: "10px 14px",
               borderRadius: 8,
               border: "none",
-              background: "#B91c1c",
+              background: "#b91c1c",
               color: "white",
               fontWeight: 700,
               cursor: "pointer",
@@ -466,8 +526,41 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div style={{ marginTop: 6 }}><strong>Telefono:</strong> {lead.phone}</div>
-            <div style={{ marginTop: 4 }}><strong>Città:</strong> {lead.city}</div>
+            <div
+              style={{
+                padding: "4px 8px",
+                borderRadius: 8,
+                background: getPriorityColor(lead.priority),
+                fontWeight: 700,
+                display: "inline-block",
+                marginTop: 6,
+              }}
+            >
+              {lead.priority || "Media"}
+            </div>
+
+            <select
+              value={lead.priority || "Media"}
+              onChange={(e) => updateLead(lead.id, { priority: e.target.value })}
+              style={{
+                padding: 6,
+                borderRadius: 8,
+                border: "1px solid #ddd",
+                marginTop: 6,
+                display: "block",
+              }}
+            >
+              <option>Bassa</option>
+              <option>Media</option>
+              <option>Alta</option>
+            </select>
+
+            <div style={{ marginTop: 6 }}>
+              <strong>Telefono:</strong> {lead.phone}
+            </div>
+            <div style={{ marginTop: 4 }}>
+              <strong>Città:</strong> {lead.city}
+            </div>
             <div style={{ marginTop: 8, padding: 10, background: "#f8f9fa", borderRadius: 8 }}>
               <strong>Note:</strong> {lead.note || "—"}
             </div>
@@ -477,6 +570,20 @@ export default function AdminPage() {
             <div style={{ marginTop: 4, fontSize: 14, color: "#444" }}>
               <strong>Tel. segnalatore:</strong> {lead.reporter_phone || "—"}
             </div>
+
+            <textarea
+              placeholder="Note interne..."
+              value={lead.admin_note || ""}
+              onChange={(e) => updateLead(lead.id, { admin_note: e.target.value })}
+              style={{
+                width: "100%",
+                marginTop: 10,
+                padding: 10,
+                borderRadius: 10,
+                border: "1px solid #ddd",
+                minHeight: 80,
+              }}
+            />
 
             <div
               style={{
