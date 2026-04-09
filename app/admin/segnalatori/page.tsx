@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
@@ -56,6 +56,11 @@ export default function SegnalatoriPage() {
   const [reporters, setReporters] = useState<Reporter[]>([]);
   const [openReporterId, setOpenReporterId] = useState<number | null>(null);
 
+  const [qualityFilter, setQualityFilter] = useState("");
+  const [minLeadsFilter, setMinLeadsFilter] = useState("");
+  const [minScoreFilter, setMinScoreFilter] = useState("");
+  const [minPrecisionFilter, setMinPrecisionFilter] = useState("");
+
   async function handleLogout() {
     await supabase.auth.signOut();
     window.location.href = "/login";
@@ -97,6 +102,33 @@ export default function SegnalatoriPage() {
 
     setReporters((prev) => prev.filter((r) => r.id !== id));
   }
+
+  const filteredReporters = useMemo(() => {
+    return reporters.filter((reporter) => {
+      const label = getQualityLabel(reporter.score, reporter.total_leads);
+      const precision = getPrecision(reporter.total_leads, reporter.duplicates);
+
+      const okQuality =
+        qualityFilter === "" ? true : label === qualityFilter;
+
+      const okLeads =
+        minLeadsFilter === ""
+          ? true
+          : reporter.total_leads >= Number(minLeadsFilter);
+
+      const okScore =
+        minScoreFilter === ""
+          ? true
+          : reporter.score >= Number(minScoreFilter);
+
+      const okPrecision =
+        minPrecisionFilter === ""
+          ? true
+          : precision >= Number(minPrecisionFilter);
+
+      return okQuality && okLeads && okScore && okPrecision;
+    });
+  }, [reporters, qualityFilter, minLeadsFilter, minScoreFilter, minPrecisionFilter]);
 
   return (
     <main
@@ -159,9 +191,105 @@ export default function SegnalatoriPage() {
         </div>
       </div>
 
-      {reporters.length === 0 && <p>Nessun segnalatore registrato.</p>}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: 12,
+          marginBottom: 20,
+        }}
+      >
+        <select
+          value={qualityFilter}
+          onChange={(e) => setQualityFilter(e.target.value)}
+          style={{
+            padding: 10,
+            borderRadius: 8,
+            border: "1px solid #ddd",
+          }}
+        >
+          <option value="">Tutte le qualità</option>
+          <option value="Premium">Premium</option>
+          <option value="Ottimo">Ottimo</option>
+          <option value="Buono">Buono</option>
+          <option value="Base">Base</option>
+          <option value="Debole">Debole</option>
+          <option value="Nuovo">Nuovo</option>
+        </select>
 
-      {reporters.map((reporter) => {
+        <input
+          type="number"
+          min="0"
+          placeholder="Segnalazioni minime"
+          value={minLeadsFilter}
+          onChange={(e) => setMinLeadsFilter(e.target.value)}
+          style={{
+            padding: 10,
+            borderRadius: 8,
+            border: "1px solid #ddd",
+          }}
+        />
+
+        <input
+          type="number"
+          min="0"
+          placeholder="Punteggio minimo"
+          value={minScoreFilter}
+          onChange={(e) => setMinScoreFilter(e.target.value)}
+          style={{
+            padding: 10,
+            borderRadius: 8,
+            border: "1px solid #ddd",
+          }}
+        />
+
+        <input
+          type="number"
+          min="0"
+          max="100"
+          placeholder="Precisione minima %"
+          value={minPrecisionFilter}
+          onChange={(e) => setMinPrecisionFilter(e.target.value)}
+          style={{
+            padding: 10,
+            borderRadius: 8,
+            border: "1px solid #ddd",
+          }}
+        />
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          flexWrap: "wrap",
+          marginBottom: 20,
+        }}
+      >
+        <button
+          onClick={() => {
+            setQualityFilter("");
+            setMinLeadsFilter("");
+            setMinScoreFilter("");
+            setMinPrecisionFilter("");
+          }}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 8,
+            border: "none",
+            background: "#6b7280",
+            color: "white",
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          Reset filtri
+        </button>
+      </div>
+
+      {filteredReporters.length === 0 && <p>Nessun segnalatore registrato.</p>}
+
+      {filteredReporters.map((reporter) => {
         const stars = getQualityStars(reporter.score, reporter.total_leads);
         const label = getQualityLabel(reporter.score, reporter.total_leads);
         const precision = getPrecision(reporter.total_leads, reporter.duplicates);
