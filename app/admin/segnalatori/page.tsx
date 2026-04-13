@@ -55,11 +55,7 @@ export default function SegnalatoriPage() {
   const supabase = createClient();
   const [reporters, setReporters] = useState<Reporter[]>([]);
   const [openReporterId, setOpenReporterId] = useState<number | null>(null);
-
-  const [qualityFilter, setQualityFilter] = useState("");
-  const [minLeadsFilter, setMinLeadsFilter] = useState("");
-  const [minScoreFilter, setMinScoreFilter] = useState("");
-  const [minPrecisionFilter, setMinPrecisionFilter] = useState("");
+  const [sortBy, setSortBy] = useState("stars_desc");
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -103,32 +99,44 @@ export default function SegnalatoriPage() {
     setReporters((prev) => prev.filter((r) => r.id !== id));
   }
 
-  const filteredReporters = useMemo(() => {
-    return reporters.filter((reporter) => {
-      const label = getQualityLabel(reporter.score, reporter.total_leads);
-      const precision = getPrecision(reporter.total_leads, reporter.duplicates);
+  const sortedReporters = useMemo(() => {
+    return [...reporters].sort((a, b) => {
+      const precisionA = getPrecision(a.total_leads, a.duplicates);
+      const precisionB = getPrecision(b.total_leads, b.duplicates);
 
-      const okQuality =
-        qualityFilter === "" ? true : label === qualityFilter;
+      const avgA = a.total_leads ? a.score / a.total_leads : 0;
+      const avgB = b.total_leads ? b.score / b.total_leads : 0;
 
-      const okLeads =
-        minLeadsFilter === ""
-          ? true
-          : reporter.total_leads >= Number(minLeadsFilter);
+      switch (sortBy) {
+        case "stars_desc":
+          return avgB - avgA;
 
-      const okScore =
-        minScoreFilter === ""
-          ? true
-          : reporter.score >= Number(minScoreFilter);
+        case "stars_asc":
+          return avgA - avgB;
 
-      const okPrecision =
-        minPrecisionFilter === ""
-          ? true
-          : precision >= Number(minPrecisionFilter);
+        case "leads_desc":
+          return b.total_leads - a.total_leads;
 
-      return okQuality && okLeads && okScore && okPrecision;
+        case "leads_asc":
+          return a.total_leads - b.total_leads;
+
+        case "photos_desc":
+          return b.photos_count - a.photos_count;
+
+        case "photos_asc":
+          return a.photos_count - b.photos_count;
+
+        case "precision_desc":
+          return precisionB - precisionA;
+
+        case "precision_asc":
+          return precisionA - precisionB;
+
+        default:
+          return 0;
+      }
     });
-  }, [reporters, qualityFilter, minLeadsFilter, minScoreFilter, minPrecisionFilter]);
+  }, [reporters, sortBy]);
 
   return (
     <main
@@ -191,105 +199,31 @@ export default function SegnalatoriPage() {
         </div>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 12,
-          marginBottom: 20,
-        }}
-      >
+      <div style={{ marginBottom: 20 }}>
         <select
-          value={qualityFilter}
-          onChange={(e) => setQualityFilter(e.target.value)}
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
           style={{
             padding: 10,
             borderRadius: 8,
             border: "1px solid #ddd",
+            fontWeight: 600,
           }}
         >
-          <option value="">Tutte le qualità</option>
-          <option value="Premium">Premium</option>
-          <option value="Ottimo">Ottimo</option>
-          <option value="Buono">Buono</option>
-          <option value="Base">Base</option>
-          <option value="Debole">Debole</option>
-          <option value="Nuovo">Nuovo</option>
+          <option value="stars_desc">⭐ Più stelle</option>
+          <option value="stars_asc">⭐ Meno stelle</option>
+          <option value="leads_desc">📊 Più segnalazioni</option>
+          <option value="leads_asc">📊 Meno segnalazioni</option>
+          <option value="photos_desc">📸 Più foto</option>
+          <option value="photos_asc">📸 Meno foto</option>
+          <option value="precision_desc">🎯 Più precisione</option>
+          <option value="precision_asc">🎯 Meno precisione</option>
         </select>
-
-        <input
-          type="number"
-          min="0"
-          placeholder="Segnalazioni minime"
-          value={minLeadsFilter}
-          onChange={(e) => setMinLeadsFilter(e.target.value)}
-          style={{
-            padding: 10,
-            borderRadius: 8,
-            border: "1px solid #ddd",
-          }}
-        />
-
-        <input
-          type="number"
-          min="0"
-          placeholder="Punteggio minimo"
-          value={minScoreFilter}
-          onChange={(e) => setMinScoreFilter(e.target.value)}
-          style={{
-            padding: 10,
-            borderRadius: 8,
-            border: "1px solid #ddd",
-          }}
-        />
-
-        <input
-          type="number"
-          min="0"
-          max="100"
-          placeholder="Precisione minima %"
-          value={minPrecisionFilter}
-          onChange={(e) => setMinPrecisionFilter(e.target.value)}
-          style={{
-            padding: 10,
-            borderRadius: 8,
-            border: "1px solid #ddd",
-          }}
-        />
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          flexWrap: "wrap",
-          marginBottom: 20,
-        }}
-      >
-        <button
-          onClick={() => {
-            setQualityFilter("");
-            setMinLeadsFilter("");
-            setMinScoreFilter("");
-            setMinPrecisionFilter("");
-          }}
-          style={{
-            padding: "10px 14px",
-            borderRadius: 8,
-            border: "none",
-            background: "#6b7280",
-            color: "white",
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
-        >
-          Reset filtri
-        </button>
-      </div>
+      {sortedReporters.length === 0 && <p>Nessun segnalatore registrato.</p>}
 
-      {filteredReporters.length === 0 && <p>Nessun segnalatore registrato.</p>}
-
-      {filteredReporters.map((reporter) => {
+      {sortedReporters.map((reporter) => {
         const stars = getQualityStars(reporter.score, reporter.total_leads);
         const label = getQualityLabel(reporter.score, reporter.total_leads);
         const precision = getPrecision(reporter.total_leads, reporter.duplicates);
